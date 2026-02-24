@@ -1,0 +1,51 @@
+# Environment & secrets
+.env
+*.key
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Docker volumes
+clippy-data/
+
+# Server-specific overrides
+docker-compose.yml.server
+
+# Old deployment configs (DigitalOcean/Heroku)
+.do/
+Procfile
+runtime.txt
+config-dashboard.html
+SECURITY-ARCHITECTURE.md
+
+# Large media files (videos)
+*.mp4

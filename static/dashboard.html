@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clippy AI - Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/clippy-icon.png">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Tahoma', 'MS Sans Serif', Arial, sans-serif;
+            background: #008080;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        /* Login/Register Form */
+        .auth-container {
+            background: #c0c0c0;
+            padding: 20px;
+            border: 4px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .auth-logos {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .auth-logotipo {
+            max-width: 300px;
+            height: auto;
+        }
+
+        .auth-icon {
+            width: 80px;
+            height: auto;
+        }
+
+        .auth-container h1 {
+            text-align: center;
+            color: #000080; /* Navy blue */
+            margin-bottom: 16px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 3px;
+            font-weight: bold;
+            color: #000000;
+            font-size: 0.9em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 4px 6px;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            background: #ffffff;
+            font-size: 13px;
+            font-family: 'Tahoma', Arial;
+        }
+
+        .form-group input:focus {
+            outline: 2px solid #000080;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 6px 12px;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            background: #c0c0c0;
+            font-size: 14px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #c0c0c0;
+            color: #000000;
+        }
+
+        .btn-primary:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+            padding: 7px 11px 5px 13px;
+        }
+
+        .btn-secondary {
+            background: #c0c0c0;
+            color: #000000;
+            margin-top: 6px;
+        }
+
+        .btn-secondary:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+            padding: 7px 11px 5px 13px;
+        }
+
+        .error-message {
+            background: #ffe0e0;
+            color: #d32f2f;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #e0f7e0;
+            color: #388e3c;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard-header {
+            background: #c0c0c0;
+            padding: 12px 16px;
+            border: 4px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .dashboard-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dashboard-logotipo {
+            height: 50px;
+            width: auto;
+        }
+
+        .dashboard-header h1 {
+            color: #000080;
+            font-size: 1.4em;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info span {
+            font-weight: bold;
+            color: #000000;
+            font-size: 0.9em;
+        }
+
+        .btn-logout {
+            background: #c0c0c0;
+            color: #000000;
+            padding: 4px 12px;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .btn-logout:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+        }
+
+        .clippy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .clippy-card {
+            background: #c0c0c0;
+            padding: 12px;
+            border: 3px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .clippy-card h3 {
+            color: #000080;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .clippy-card p {
+            color: #000000;
+            margin-bottom: 6px;
+            font-size: 0.85em;
+        }
+
+        .clippy-card .stats {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 8px;
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+        }
+
+        .clippy-card .stats div {
+            flex: 1;
+            text-align: center;
+        }
+
+        .clippy-card .stats div strong {
+            display: block;
+            color: #000080;
+            font-size: 1em;
+        }
+
+        .clippy-card .stats div span {
+            font-size: 0.75em;
+            color: #000000;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .card-actions button {
+            flex: 1;
+            padding: 4px 8px;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            background: #c0c0c0;
+            font-weight: normal;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+
+        .btn-edit {
+            background: #c0c0c0;
+            color: #000000;
+        }
+
+        .btn-edit:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+        }
+
+        .btn-delete {
+            background: #c0c0c0;
+            color: #000000;
+        }
+
+        .btn-delete:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+        }
+
+        .btn-copy {
+            background: #c0c0c0;
+            color: #000000;
+        }
+
+        .btn-copy:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+        }
+
+        .embed-code {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 10px;
+            overflow-x: auto;
+            display: none;
+        }
+
+        .btn-create-new {
+            display: inline-block;
+            background: #c0c0c0;
+            color: #000000;
+            padding: 8px 20px;
+            text-decoration: none;
+            font-weight: bold;
+            border: 3px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-create-new:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+            box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            background: #c0c0c0;
+            border: 4px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .empty-state h2 {
+            color: #000080;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            color: #000000;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        /* Modal for editing */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <video id="bg-video" autoplay loop muted playsinline>
+        <source src="/static/palme_mosse_dal_vento_hd.mp4" type="video/mp4">
+    </video>
+    <div class="container">
+        <!-- Loading State -->
+        <div id="loading" class="loading">
+            Loading...
+        </div>
+
+        <!-- Authentication Form -->
+        <div id="authContainer" class="auth-container" style="display: none;">
+            <div class="auth-logos">
+                <img src="/static/clippy-logotipo.png" alt="Clippy AI Platform" class="auth-logotipo">
+                <img src="/static/clippy-icon.png" alt="Clippy" class="auth-icon">
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+
+            <!-- Login Form -->
+            <div id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                </div>
+                <button class="btn btn-primary" onclick="handleLogin()">Login</button>
+                <button class="btn btn-secondary" onclick="showRegisterForm()">Register</button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" style="display: none;">
+                <div class="form-group">
+                    <label for="registerUsername">Username</label>
+                    <input type="text" id="registerUsername" placeholder="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" placeholder="Minimum 6 characters" required>
+                </div>
+                <button class="btn btn-primary" onclick="handleRegister()">Create Account</button>
+                <button class="btn btn-secondary" onclick="showLoginForm()">Back to Login</button>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <img src="/static/clippy-logotipo.png" alt="Clippy AI Platform" style="max-width: 500px; width: 80%; height: auto;">
+            </div>
+            <div class="dashboard-header">
+                <div class="dashboard-header-left">
+                    <div>
+                        <h1 style="margin: 0;">My Clippys</h1>
+                        <p style="color: #666; margin: 0; font-size: 0.85em;">Manage your configurations</p>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <span id="username"></span>
+                    <button class="btn-logout" onclick="handleLogout()">Logout</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 30px; text-align: center;">
+                <a href="/create" class="btn-create-new">➕ Create New Clippy</a>
+            </div>
+
+            <div id="clippyGrid" class="clippy-grid"></div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <h2>No Clippy Created</h2>
+                <p>Start by creating your first virtual assistant!</p>
+                <a href="/create" class="btn-create-new">Create First Clippy</a>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div id="editModal" class="modal">
+            <div class="modal-content">
+                <h2>Edit Configuration</h2>
+                <div id="editForm"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentUser = null;
+        let authToken = null;
+        let allConfigs = [];
+
+        // Check authentication on load
+        async function init() {
+            authToken = localStorage.getItem('clippy_auth_token');
+
+            if (authToken) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        currentUser = await response.json();
+                        showDashboard();
+                        loadConfigs();
+                    } else {
+                        showAuth();
+                    }
+                } catch (error) {
+                    console.error('Auth error:', error);
+                    showAuth();
+                }
+            } else {
+                showAuth();
+            }
+
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showAuth() {
+            document.getElementById('authContainer').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        function showDashboard() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('username').textContent = currentUser.username;
+        }
+
+        function showLoginForm() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            clearMessages();
+        }
+
+        function showRegisterForm() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            clearMessages();
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => errorEl.style.display = 'none', 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => successEl.style.display = 'none', 5000);
+        }
+
+        function clearMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!email || !password) {
+                showError('Fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.access_token;
+                    currentUser = data.user;
+                    localStorage.setItem('clippy_auth_token', authToken);
+                    showSuccess('Login successful!');
+                    setTimeout(() => {
+                        showDashboard();
+                        loadConfigs();
+                    }, 1000);
+                } else {
+                    showError(data.detail || 'Login error');
+                }
+            } catch (error) {
+                showError('Connection error');
+                console.error(error);
+            }
+        }
+
+        async function handleRegister() {
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!username || !email || !password) {
+                showError('Fill in all fields');
+                return;
+            }
+
+            if (password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.access_token;
+                    currentUser = data.user;
+                    localStorage.setItem('clippy_auth_token', authToken);
+                    showSuccess('Registration completed!');
+                    setTimeout(() => {
+                        showDashboard();
+                        loadConfigs();
+                    }, 1000);
+                } else {
+                    showError(data.detail || 'Registration error');
+                }
+            } catch (error) {
+                showError('Connection error');
+                console.error(error);
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('clippy_auth_token');
+            authToken = null;
+            currentUser = null;
+            showAuth();
+        }
+
+        async function loadConfigs() {
+            try {
+                const response = await fetch(`${API_BASE}/api/configs`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    allConfigs = await response.json();
+                    renderConfigs();
+                } else {
+                    showError('Error loading configurations');
+                }
+            } catch (error) {
+                console.error('Load configs error:', error);
+                showError('Connection error');
+            }
+        }
+
+        function renderConfigs() {
+            const grid = document.getElementById('clippyGrid');
+            const emptyState = document.getElementById('emptyState');
+
+            if (allConfigs.length === 0) {
+                grid.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            grid.innerHTML = allConfigs.map(config => `
+                <div class="clippy-card">
+                    <h3>${config.name}</h3>
+                    <p><strong>Agent:</strong> ${config.agent}</p>
+                    <p><strong>Provider:</strong> ${config.provider}</p>
+                    <p><strong>Model:</strong> ${config.model}</p>
+                    ${config.description ? `<p style="color: #999; font-style: italic;">${config.description}</p>` : ''}
+
+                    <div class="stats">
+                        <div>
+                            <strong>${config.usage_count || 0}</strong>
+                            <span>Uses</span>
+                        </div>
+                        <div>
+                            <strong>${config.config_id}</strong>
+                            <span>ID</span>
+                        </div>
+                    </div>
+
+                    <div class="embed-code" id="embed-${config.config_id}">
+&lt;script src="${API_BASE}/static/clippy-embed.js" data-config-id="${config.config_id}"&gt;&lt;/script&gt;
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn-copy" onclick="toggleEmbed('${config.config_id}')">📋 Code</button>
+                        <button class="btn-edit" onclick="editConfig('${config.config_id}')">✏️ Edit</button>
+                        <button class="btn-delete" onclick="deleteConfig('${config.config_id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleEmbed(configId) {
+            const embedEl = document.getElementById(`embed-${configId}`);
+            if (embedEl.style.display === 'none' || !embedEl.style.display) {
+                embedEl.style.display = 'block';
+                // Copy to clipboard
+                const code = embedEl.textContent.trim();
+                navigator.clipboard.writeText(code);
+                alert('✅ Code copied to clipboard!');
+            } else {
+                embedEl.style.display = 'none';
+            }
+        }
+
+        async function editConfig(configId) {
+            window.location.href = `/create?edit=${configId}`;
+        }
+
+        async function deleteConfig(configId) {
+            const config = allConfigs.find(c => c.config_id === configId);
+
+            if (!confirm(`Are you sure you want to delete "${config.name}"?\n\nThis action is irreversible.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/configs/${configId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok || response.status === 204) {
+                    alert('✅ Configuration deleted successfully!');
+                    loadConfigs();
+                } else {
+                    showError('Error during deletion');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showError('Connection error');
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

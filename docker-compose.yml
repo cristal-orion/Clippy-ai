@@ -1,0 +1,31 @@
+services:
+  clippy-backend:
+    build: .
+    container_name: clippy-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    restart: unless-stopped
+    volumes:
+      - ./.env:/app/.env:ro
+      - clippy-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - clippy-network
+
+volumes:
+  clippy-data:
+    driver: local
+
+networks:
+  clippy-network:
+    driver: bridge

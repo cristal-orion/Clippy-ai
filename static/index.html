@@ -1,0 +1,2973 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clippy AI Platform - Test & Embed Widget</title>
+    <link rel="icon" type="image/png" href="/static/clippy-icon.png">
+    <link rel="stylesheet" type="text/css" href="/static/assets/clippy.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        background: #008080; /* Teal Windows 95 */
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Layout principale */
+      .platform-container {
+        display: flex;
+        height: 100vh;
+      }
+
+      /* Sidebar controlli - Windows 95 Style */
+      .control-panel {
+        width: 280px;
+        min-width: 200px;
+        max-width: 600px;
+        background: #c0c0c0; /* Silver Windows 95 */
+        color: #000000;
+        padding: 8px;
+        overflow-y: auto;
+        border-right: 2px solid #808080;
+        box-shadow: inset -1px -1px 0 #000000, inset 1px 1px 0 #ffffff;
+        position: relative;
+      }
+
+      /* Resize Handle */
+      .resize-handle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 8px;
+        height: 100%;
+        cursor: ew-resize;
+        background: transparent;
+        z-index: 10;
+      }
+
+      .resize-handle:hover {
+        background: #000080;
+      }
+
+      .resize-handle::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 4px;
+        height: 40px;
+        background: repeating-linear-gradient(
+          0deg,
+          #808080 0px,
+          #808080 2px,
+          transparent 2px,
+          transparent 4px
+        );
+      }
+
+      .control-panel-logo {
+        width: 100%;
+        max-width: 240px;
+        height: auto;
+        margin-bottom: 12px;
+      }
+
+      .control-panel h1 {
+        font-size: 1.2em;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #000080; /* Navy blue */
+      }
+
+      .control-panel h2 {
+        font-size: 0.95em;
+        margin-top: 12px;
+        margin-bottom: 6px;
+        padding: 3px 4px;
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        color: #ffffff;
+        font-weight: bold;
+      }
+
+      .control-group {
+        margin-bottom: 10px;
+        background: #c0c0c0;
+        padding: 6px;
+        border: 1px solid #808080;
+        box-shadow: inset -1px -1px 0 #ffffff, inset 1px 1px 0 #808080;
+      }
+
+      .control-group label {
+        display: block;
+        font-size: 0.8em;
+        margin-bottom: 3px;
+        font-weight: bold;
+        color: #000000;
+      }
+
+      .control-group input,
+      .control-group select {
+        width: 100%;
+        padding: 3px 4px;
+        border: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        background: #ffffff;
+        font-size: 0.85em;
+        font-family: "Tahoma", "MS Sans Serif", Arial;
+      }
+
+      .control-group button {
+        padding: 4px 12px;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        background: #c0c0c0;
+        cursor: pointer;
+        font-weight: normal;
+        font-size: 0.85em;
+        margin: 3px 3px 0 0;
+        box-shadow: none;
+      }
+
+      .control-group button:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+        padding: 5px 11px 3px 13px;
+      }
+
+      .btn-primary {
+        background: #c0c0c0;
+        color: #000000;
+      }
+
+      .btn-secondary {
+        background: #c0c0c0;
+        color: #000000;
+      }
+
+      .btn-danger {
+        background: #c0c0c0;
+        color: #000000;
+      }
+
+      .status-indicator {
+        padding: 6px;
+        background: #ffffff;
+        border: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        font-size: 0.8em;
+        margin-bottom: 8px;
+        font-family: "Fixedsys", "Courier New", monospace;
+      }
+
+      .animation-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+
+      .animation-grid button {
+        padding: 4px;
+        font-size: 0.7em;
+        background: #c0c0c0;
+        color: #000000;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+      }
+
+      /* Area principale - Preview */
+      .preview-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 4px solid;
+        border-color: #dfdfdf #808080 #808080 #dfdfdf;
+      }
+
+      .preview-header {
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        padding: 4px 8px;
+        border-bottom: none;
+        box-shadow: none;
+      }
+
+      .preview-header h2 {
+        font-size: 1.1em;
+        color: #ffffff;
+        margin-bottom: 0;
+        font-weight: bold;
+      }
+
+      .preview-header p {
+        color: #ffffff;
+        font-size: 0.75em;
+        margin-top: 2px;
+      }
+
+      .preview-content {
+        flex: 1;
+        position: relative;
+        background: #008080; /* Teal background come Windows 95 */
+      }
+
+      .demo-content {
+        padding: 40px;
+        max-width: 800px;
+      }
+
+      .demo-content h1 {
+        color: #ffffff;
+        margin-bottom: 20px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+      }
+
+      .demo-content p {
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+
+      /* Custom Chat Balloon */
+      #customBalloon {
+        position: fixed;
+        min-width: 320px;
+        max-width: 400px;
+        background: #ffffc0;
+        border: 2px solid #333;
+        border-radius: 10px;
+        padding: 15px;
+        padding-top: 30px; /* Spazio per il pulsante di chiusura */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        font-family: "Microsoft Sans", "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
+        color: #000;
+        display: none;
+        z-index: 10000;
+        transition: bottom 0.2s ease, right 0.2s ease;
+        /* NO overflow qui - lasciamo che sia solo sul messaggio */
+      }
+
+      #closeBalloonBtn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: transparent;
+        color: #666;
+        border: 1px solid #999;
+        border-radius: 3px;
+        width: 18px;
+        height: 18px;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        font-weight: normal;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+      }
+
+      #closeBalloonBtn:hover {
+        background: #f0f0f0;
+        color: #333;
+        border-color: #666;
+      }
+
+      @keyframes balloonAppear {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      #customBalloon.show {
+        display: block;
+      }
+
+      #customBalloon::after {
+        content: "";
+        position: absolute;
+        bottom: -16px;
+        right: 40px;
+        width: 0;
+        height: 0;
+        border-left: 15px solid transparent;
+        border-right: 15px solid transparent;
+        border-top: 16px solid #ffffc0;
+      }
+
+      #customBalloon::before {
+        content: "";
+        position: absolute;
+        bottom: -19px;
+        right: 38px;
+        width: 0;
+        height: 0;
+        border-left: 17px solid transparent;
+        border-right: 17px solid transparent;
+        border-top: 19px solid #333;
+      }
+
+      #balloonMessage {
+        margin-bottom: 12px;
+        line-height: 1.5;
+        max-height: 350px; /* Limita l'altezza del messaggio */
+        overflow-y: auto; /* Scroll solo per il messaggio, non per l'input */
+        padding-right: 5px; /* Spazio per la scrollbar */
+      }
+
+      /* Scrollbar personalizzata per il balloon */
+      #balloonMessage::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      #balloonMessage::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+      }
+
+      #balloonMessage::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+      }
+
+      #balloonMessage::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.5);
+      }
+
+      /* Supporto per Markdown - grassetto e corsivo */
+      #balloonMessage strong,
+      #balloonMessage b {
+        font-weight: bold;
+      }
+
+      #balloonMessage em,
+      #balloonMessage i {
+        font-style: italic;
+      }
+
+      .chat-input-container {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(0, 0, 0, 0.2);
+      }
+
+      .chat-input-wrapper {
+        display: flex;
+        gap: 5px;
+      }
+
+      .chat-input-wrapper input {
+        flex: 1;
+        padding: 8px 10px;
+        border: 1px solid #999;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .chat-input-wrapper input:focus {
+        outline: none;
+        border-color: #4caf50;
+        box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+      }
+
+      .chat-input-wrapper button {
+        padding: 4px 12px;
+        background: #c0c0c0;
+        color: #000000;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+      }
+
+      .chat-input-wrapper button:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+      }
+
+      .chat-input-wrapper button:disabled {
+        background: #808080;
+        color: #c0c0c0;
+        cursor: not-allowed;
+      }
+
+      .typing-indicator {
+        display: none;
+        color: #666;
+        font-style: italic;
+        font-size: 0.85em;
+        margin-top: 5px;
+      }
+
+      .typing-indicator.active {
+        display: block;
+      }
+
+      /* Embed code section */
+      .embed-section {
+        background: #c0c0c0;
+        padding: 8px;
+        border: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        margin-top: 8px;
+      }
+
+      .embed-section textarea {
+        width: 100%;
+        height: 100px;
+        padding: 4px;
+        font-family: "Courier New", "Fixedsys", monospace;
+        font-size: 0.75em;
+        border: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        resize: vertical;
+        background: #ffffff;
+      }
+
+      .embed-section button {
+        margin-top: 6px;
+        width: 100%;
+      }
+
+      /* Scrollbar personalizzata */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      /* RAG Status Animation */
+      #ragStatus {
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* File input styling */
+      input[type="file"] {
+        cursor: pointer;
+      }
+
+      input[type="file"]::-webkit-file-upload-button {
+        background: rgba(76, 175, 80, 0.8);
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+        font-weight: bold;
+      }
+
+      input[type="file"]::-webkit-file-upload-button:hover {
+        background: rgba(76, 175, 80, 1);
+      }
+
+      /* Textarea styling */
+      textarea {
+        font-family: "Consolas", "Monaco", monospace;
+        line-height: 1.5;
+      }
+
+      textarea:focus {
+        outline: 2px solid rgba(76, 175, 80, 0.5);
+      }
+
+      /* Connection Status Styling */
+      #connectionStatus {
+        transition: all 0.3s ease;
+        border-radius: 6px;
+        font-weight: 500;
+      }
+
+      /* Provider Select Styling */
+      select#providerSelect,
+      select#modelSelect {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      select#providerSelect:hover,
+      select#modelSelect:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      /* API Key Toggle Button */
+      button[onclick="toggleApiKeyVisibility()"] {
+        transition: opacity 0.2s;
+      }
+
+      button[onclick="toggleApiKeyVisibility()"]:hover {
+        opacity: 0.7;
+      }
+
+      /* Auth Header Styles */
+      .auth-header {
+        position: fixed;
+        top: 8px;
+        right: 12px;
+        background: #c0c0c0;
+        padding: 6px 12px;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85em;
+      }
+
+      .auth-header .user-info {
+        font-weight: bold;
+        color: #000000;
+      }
+
+      .auth-header a {
+        color: #000000;
+        text-decoration: none;
+        padding: 3px 8px;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        font-weight: normal;
+      }
+
+      .auth-header a:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+      }
+
+      /* ============ Win95 Popup Modal ============ */
+      #win95Overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #win95Overlay.show {
+        display: flex;
+      }
+
+      .win95-popup {
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+        min-width: 340px;
+        max-width: 500px;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        animation: win95PopIn 0.15s ease-out;
+      }
+
+      @keyframes win95PopIn {
+        from { transform: scale(0.92); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      .win95-popup-titlebar {
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        color: #ffffff;
+        padding: 3px 5px;
+        font-size: 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+
+      .win95-popup-titlebar-text {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .win95-popup-close {
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        width: 16px;
+        height: 14px;
+        font-size: 10px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        color: #000000;
+      }
+
+      .win95-popup-close:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+      }
+
+      .win95-popup-body {
+        padding: 16px 20px;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .win95-popup-icon {
+        font-size: 28px;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+
+      .win95-popup-message {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #000000;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+
+      .win95-popup-buttons {
+        padding: 0 20px 14px 20px;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .win95-popup-btn {
+        min-width: 80px;
+        padding: 4px 16px;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        font-size: 12px;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        cursor: pointer;
+        color: #000000;
+      }
+
+      .win95-popup-btn:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+        padding: 5px 15px 3px 17px;
+      }
+
+      .win95-popup-btn:focus {
+        outline: 1px dotted #000000;
+        outline-offset: -4px;
+      }
+
+      .win95-popup-btn-primary {
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Win95 Popup Modal -->
+    <div id="win95Overlay">
+      <div class="win95-popup">
+        <div class="win95-popup-titlebar">
+          <span class="win95-popup-titlebar-text">
+            <span id="win95Icon">ℹ️</span>
+            <span id="win95Title">Clippy AI</span>
+          </span>
+          <button class="win95-popup-close" id="win95CloseBtn">×</button>
+        </div>
+        <div class="win95-popup-body">
+          <div class="win95-popup-icon" id="win95BodyIcon">ℹ️</div>
+          <div class="win95-popup-message" id="win95Message"></div>
+        </div>
+        <div class="win95-popup-buttons" id="win95Buttons"></div>
+      </div>
+    </div>
+
+    <script>
+      // ============ Win95 Popup System ============
+      (function () {
+        let _resolve = null;
+
+        function showPopup(message, options = {}) {
+          const overlay = document.getElementById("win95Overlay");
+          const msgEl = document.getElementById("win95Message");
+          const btnsEl = document.getElementById("win95Buttons");
+          const titleEl = document.getElementById("win95Title");
+          const iconEl = document.getElementById("win95Icon");
+          const bodyIconEl = document.getElementById("win95BodyIcon");
+          const closeBtn = document.getElementById("win95CloseBtn");
+
+          const type = options.type || "info";
+          const title = options.title || "Clippy AI";
+          const buttons = options.buttons || [{ label: "OK", value: true, primary: true }];
+
+          const icons = {
+            info: "ℹ️",
+            success: "✅",
+            warning: "⚠️",
+            error: "❌",
+            confirm: "❓",
+          };
+
+          const icon = icons[type] || icons.info;
+          titleEl.textContent = title;
+          iconEl.textContent = icon;
+          bodyIconEl.textContent = icon;
+          msgEl.textContent = message;
+
+          btnsEl.innerHTML = "";
+          buttons.forEach(function (btn, i) {
+            const b = document.createElement("button");
+            b.className = "win95-popup-btn" + (btn.primary ? " win95-popup-btn-primary" : "");
+            b.textContent = btn.label;
+            b.onclick = function () { closePopup(btn.value); };
+            btnsEl.appendChild(b);
+            if (btn.primary) setTimeout(function () { b.focus(); }, 50);
+          });
+
+          closeBtn.onclick = function () {
+            closePopup(buttons.length === 1 ? buttons[0].value : false);
+          };
+
+          overlay.classList.add("show");
+
+          overlay.onmousedown = function (e) {
+            if (e.target === overlay) closePopup(buttons.length === 1 ? buttons[0].value : false);
+          };
+
+          return new Promise(function (resolve) { _resolve = resolve; });
+        }
+
+        function closePopup(value) {
+          document.getElementById("win95Overlay").classList.remove("show");
+          if (_resolve) { _resolve(value); _resolve = null; }
+        }
+
+        // Detect type from message content
+        function detectType(msg) {
+          if (/^✅|success|saved|copied|loaded/i.test(msg)) return "success";
+          if (/^⚠️|⚠|warning/i.test(msg)) return "warning";
+          if (/^❌|error|failed|unable/i.test(msg)) return "error";
+          return "info";
+        }
+
+        window.win95Alert = function (message, type) {
+          return showPopup(message, {
+            type: type || detectType(message),
+            buttons: [{ label: "OK", value: true, primary: true }],
+          });
+        };
+
+        window.win95Confirm = function (message) {
+          return showPopup(message, {
+            type: "confirm",
+            title: "Confirm",
+            buttons: [
+              { label: "Yes", value: true, primary: true },
+              { label: "No", value: false },
+            ],
+          });
+        };
+      })();
+    </script>
+
+    <!-- Auth Header -->
+    <div class="auth-header" id="authHeader" style="display: none">
+      <span class="user-info" id="userInfoDisplay"></span>
+      <a href="/dashboard.html">📊 Dashboard</a>
+    </div>
+
+    <div class="platform-container">
+      <!-- Control Panel -->
+      <div class="control-panel" id="controlPanel">
+        <div class="resize-handle" id="resizeHandle"></div>
+        <img
+          src="/static/clippy-logotipo.png"
+          alt="Clippy AI Platform"
+          class="control-panel-logo"
+        />
+        <p style="font-size: 0.85em; opacity: 0.9; margin-bottom: 20px">
+          Test, configure and embed Clippy on your site
+        </p>
+
+        <div class="status-indicator" id="statusIndicator">
+          ⏳ Initializing...
+        </div>
+
+        <!-- API Configuration -->
+        <h2>⚙️ AI Provider Configuration</h2>
+
+        <div
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 3px solid #4caf50;
+          "
+        >
+          <p style="font-size: 0.85em; margin: 0">
+            💡 <strong>Universal Model Picker</strong><br />
+            Select any AI provider supported by LiteLLM (100+ providers!)
+          </p>
+        </div>
+
+        <div class="control-group">
+          <label for="providerSelect">🌐 AI Provider</label>
+          <select id="providerSelect" onchange="onProviderChange()">
+            <option value="groq">Groq (Default - Fast & Free)</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="azure">Azure OpenAI</option>
+            <option value="vertex_ai">Google Vertex AI</option>
+            <option value="ollama">Ollama (Local)</option>
+            <option value="huggingface">HuggingFace</option>
+            <option value="together_ai">Together AI</option>
+            <option value="replicate">Replicate</option>
+            <option value="cohere">Cohere</option>
+            <option value="bedrock">AWS Bedrock</option>
+            <option value="perplexity">Perplexity</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="xai">xAI (Grok)</option>
+          </select>
+          <p
+            style="font-size: 0.75em; opacity: 0.7; margin-top: 5px"
+            id="providerInfo"
+          >
+            Groq offre accesso gratuito a modelli veloci come Llama, Mixtral e
+            GPT OSS
+          </p>
+        </div>
+
+        <div class="control-group">
+          <label for="modelSelect">🤖 AI Model</label>
+          <select id="modelSelect">
+            <!-- Populated dynamically based on provider -->
+          </select>
+          <p
+            style="font-size: 0.75em; opacity: 0.7; margin-top: 5px"
+            id="modelInfo"
+          >
+            Select the model from the chosen provider
+          </p>
+        </div>
+
+        <div class="control-group">
+          <label for="apiKey">🔑 API Key</label>
+          <div style="position: relative">
+            <input
+              type="password"
+              id="apiKey"
+              placeholder="Enter your API key..."
+              style="width: 100%; padding-right: 35px"
+            />
+            <button
+              onclick="toggleApiKeyVisibility()"
+              style="
+                position: absolute;
+                right: 5px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                color: white;
+                cursor: pointer;
+                font-size: 1.2em;
+              "
+              title="Show/Hide API Key"
+            >
+              👁️
+            </button>
+          </div>
+          <p
+            style="
+              font-size: 0.75em;
+              opacity: 0.7;
+              margin-top: 5px;
+              color: #90ee90;
+            "
+            id="apiKeyInfo"
+          >
+            🔒 The API key is encrypted and saved on the server. It is never stored in the browser.
+          </p>
+        </div>
+
+        <div class="control-group">
+          <label for="agentSelect">👤 Character</label>
+          <select id="agentSelect">
+            <option value="Clippy">📎 Clippy</option>
+            <option value="Merlin">🧙‍♂️ Merlin</option>
+            <option value="Rover">🐕 Rover</option>
+            <option value="Links">🐱 Links</option>
+            <option value="Genie">🧞‍♂️ Genie</option>
+            <option value="Genius">💡 Genius</option>
+            <option value="F1">🤖 F1</option>
+            <option value="Rocky">🗿 Rocky</option>
+            <option value="Peedy">🐦 Peedy</option>
+            <option value="Bonzi">🐵 Bonzi</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <button
+            class="btn-primary"
+            onclick="reloadAgent()"
+            style="width: 100%"
+          >
+            🔄 Apply Changes
+          </button>
+        </div>
+
+        <div class="control-group" style="margin-top: 10px">
+          <button
+            class="btn-secondary"
+            onclick="testConnection()"
+            style="width: 100%"
+          >
+            🔌 Test API Connection
+          </button>
+          <div
+            id="connectionStatus"
+            style="
+              margin-top: 8px;
+              padding: 8px;
+              border-radius: 4px;
+              font-size: 0.85em;
+              display: none;
+            "
+          ></div>
+        </div>
+
+        <!-- System Prompt Editor -->
+        <h2>📝 System Prompt</h2>
+
+        <div class="control-group">
+          <label for="systemPromptEditor"
+            >Customize the assistant's behavior:</label
+          >
+          <textarea
+            id="systemPromptEditor"
+            rows="6"
+            style="
+              width: 100%;
+              padding: 8px;
+              border-radius: 4px;
+              font-size: 0.85em;
+              font-family: 'Consolas', monospace;
+              resize: vertical;
+              background: #ffffff;
+              color: #000000;
+              border: 2px solid;
+              border-color: #808080 #ffffff #ffffff #808080;
+            "
+            placeholder="Write your custom system prompt here..."
+          ></textarea>
+          <div style="display: flex; gap: 5px; margin-top: 5px">
+            <button
+              class="btn-secondary"
+              onclick="resetSystemPrompt()"
+              style="flex: 1"
+            >
+              🔄 Reset
+            </button>
+            <button
+              class="btn-primary"
+              onclick="saveSystemPrompt()"
+              style="flex: 1"
+            >
+              💾 Save
+            </button>
+          </div>
+        </div>
+
+        <!-- Welcome Message -->
+        <h2>👋 Welcome Message</h2>
+
+        <div class="control-group">
+          <label for="welcomeMessageEditor"
+            >Message shown in the balloon when the widget loads:</label
+          >
+          <textarea
+            id="welcomeMessageEditor"
+            rows="3"
+            style="
+              width: 100%;
+              padding: 8px;
+              border-radius: 4px;
+              font-size: 0.85em;
+              font-family: 'Consolas', monospace;
+              resize: vertical;
+              background: #ffffff;
+              color: #000000;
+              border: 2px solid;
+              border-color: #808080 #ffffff #ffffff #808080;
+            "
+            placeholder="Ciao! Come posso aiutarti oggi?"
+          ></textarea>
+          <p style="font-size: 0.75em; opacity: 0.7; margin-top: 5px">
+            💡 This message appears in the balloon when the widget first loads. Leave empty for default greeting.
+          </p>
+        </div>
+
+        <!-- RAG Documents -->
+        <h2>📚 RAG - Knowledge Base</h2>
+
+        <div class="control-group">
+          <div
+            style="
+              background: rgba(255, 255, 255, 0.1);
+              padding: 10px;
+              border-radius: 5px;
+              margin-bottom: 10px;
+            "
+          >
+            <p style="font-size: 0.8em; margin: 0 0 8px 0">
+              💡 <strong>What is RAG?</strong><br />
+              Retrieval Augmented Generation allows the AI to respond using
+              information from your documents.
+            </p>
+            <p style="font-size: 0.75em; opacity: 0.8; margin: 0">
+              Example: Company FAQs, product manuals, technical documentation
+            </p>
+          </div>
+
+          <label for="ragUrlInput">🌐 Fetch from URL:</label>
+          <div style="display: flex; gap: 5px; margin-bottom: 8px">
+            <input
+              type="url"
+              id="ragUrlInput"
+              placeholder="https://www.example.com"
+              style="
+                flex: 1;
+                padding: 8px;
+                border-radius: 4px;
+                font-size: 0.85em;
+                background: rgba(255, 255, 255, 0.1);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+              "
+            />
+            <button
+              class="btn-primary"
+              onclick="fetchFromUrl()"
+              id="fetchUrlBtn"
+              style="white-space: nowrap"
+            >
+              🌐 Fetch
+            </button>
+          </div>
+
+          <label for="ragFileInput">📂 Upload document:</label>
+          <input
+            type="file"
+            id="ragFileInput"
+            accept=".txt,.md"
+            style="
+              width: 100%;
+              padding: 8px;
+              background: rgba(255, 255, 255, 0.9);
+              border-radius: 4px;
+              margin-bottom: 8px;
+              color: #333;
+            "
+            onchange="handleRAGFile(event)"
+          />
+
+          <label for="ragContentArea">✏️ Or paste text:</label>
+          <textarea
+            id="ragContentArea"
+            rows="8"
+            style="
+              width: 100%;
+              padding: 8px;
+              border-radius: 4px;
+              font-size: 0.8em;
+              resize: vertical;
+              background: #ffffff;
+              color: #000000;
+              border: 2px solid;
+              border-color: #808080 #ffffff #ffffff #808080;
+            "
+            placeholder="Paste your knowledge base text here...&#10;&#10;Example:&#10;Q: What are your hours?&#10;A: We're open Mon-Fri 9AM-6PM&#10;&#10;Q: How to contact you?&#10;A: Email: info@example.com"
+          ></textarea>
+
+          <div style="display: flex; gap: 5px; margin-top: 8px">
+            <button
+              class="btn-primary"
+              onclick="saveRAGContent()"
+              style="flex: 1"
+            >
+              💾 Save KB
+            </button>
+            <button
+              class="btn-danger"
+              onclick="clearRAGContent()"
+              style="flex: 1"
+            >
+              🗑️ Clear
+            </button>
+          </div>
+
+          <div
+            id="ragStatus"
+            style="
+              margin-top: 8px;
+              padding: 8px;
+              background: rgba(255, 255, 255, 0.15);
+              border-radius: 4px;
+              font-size: 0.8em;
+              display: none;
+            "
+          >
+            <span id="ragStatusText"></span>
+          </div>
+        </div>
+
+        <!-- Quick Commands -->
+        <h2>🎮 Quick Tests</h2>
+
+        <div class="control-group">
+          <button class="btn-secondary" onclick="testGreeting()">
+            👋 Greet
+          </button>
+          <button class="btn-secondary" onclick="testHelp()">
+            ❓ Ask Help
+          </button>
+          <button class="btn-secondary" onclick="testJoke()">
+            😄 Tell Joke
+          </button>
+          <button class="btn-danger" onclick="stopAgent()">⏹️ Stop</button>
+        </div>
+
+        <!-- Manual Animations -->
+        <h2>🎭 Test Animations</h2>
+
+        <div class="control-group">
+          <div class="animation-grid" id="animationGrid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Debug -->
+        <h2>🔧 Debug</h2>
+
+        <div class="control-group">
+          <button class="btn-secondary" onclick="showAvailableAnimations()">
+            📋 Animation List
+          </button>
+          <button class="btn-secondary" onclick="toggleConsole()">
+            🖥️ Browser Console
+          </button>
+          <button class="btn-danger" onclick="resetConversation()">
+            🗑️ Reset Chat
+          </button>
+        </div>
+
+        <!-- Embed Code -->
+        <h2>💾 Generate Widget for Your Site</h2>
+
+        <div class="embed-section">
+          <p style="font-size: 0.85em; margin-bottom: 10px">
+            <strong>1. Save configuration:</strong>
+          </p>
+          <div class="control-group">
+            <label for="configName">Configuration Name:</label>
+            <input
+              type="text"
+              id="configName"
+              placeholder="E.g.: Customer Assistant"
+              value="My Clippy Assistant"
+              style="
+                width: 100%;
+                padding: 8px;
+                border-radius: 4px;
+                border: 1px solid #ddd;
+              "
+            />
+          </div>
+          <button
+            class="btn-primary"
+            onclick="saveConfigAndGenerateEmbed()"
+            style="width: 100%; margin-top: 10px"
+          >
+            💾 Save and Generate Widget Code
+          </button>
+
+          <div id="embedOutput" style="display: none; margin-top: 15px">
+            <p style="font-size: 0.85em; margin-bottom: 10px; color: #4caf50">
+              ✅ <strong>Configuration saved!</strong> ID:
+              <code
+                id="configIdDisplay"
+                style="
+                  background: rgba(0, 0, 0, 0.1);
+                  padding: 2px 6px;
+                  border-radius: 3px;
+                "
+              ></code>
+            </p>
+            <p style="font-size: 0.85em; margin-bottom: 10px">
+              <strong>2. Copy this code into your site:</strong>
+            </p>
+            <textarea
+              id="embedCode"
+              readonly
+              style="height: 80px; font-size: 0.8em"
+            >
+Loading...
+</textarea
+            >
+            <button
+              class="btn-primary"
+              onclick="copyEmbedCode()"
+              style="width: 100%; margin-top: 10px"
+            >
+              📋 Copy Code
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Area -->
+      <div class="preview-area">
+        <div class="preview-header">
+          <h2>👁️ Preview Widget</h2>
+          <p>
+            This is how Clippy will appear on your site. Interact directly in
+            the balloon!
+          </p>
+        </div>
+
+        <div class="preview-content">
+          <div class="demo-content">
+            <h1>Your Website</h1>
+            <p>This is a sample area that simulates your website's content.</p>
+            <p>
+              Clippy will appear in the bottom right corner and users can
+              interact directly with it through the balloon.
+            </p>
+            <p>
+              The conversation is fluid and natural, perfectly integrated into
+              your design!
+            </p>
+          </div>
+
+          <!-- Clippy will be positioned here by clippyjs -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Chat Balloon -->
+    <div id="customBalloon">
+      <button id="closeBalloonBtn" onclick="closeBalloon()" title="Close">
+        ×
+      </button>
+      <div id="balloonMessage">Hi! I'm Clippy! 👋</div>
+      <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+          <input
+            type="text"
+            id="clippyInput"
+            placeholder="Type here..."
+            onkeypress="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"
+          />
+          <button onclick="sendChatMessage()" id="sendButton">Send</button>
+        </div>
+        <div class="typing-indicator" id="typingIndicator">⏳ Thinking...</div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/clippy.js"></script>
+
+    <script>
+      // Configura il percorso per gli assets (funziona sia in locale che su server)
+      window.CLIPPY_CDN = "/static/assets/agents/";
+
+      let currentAgent = null;
+      let currentAgentName = "Clippy";
+      let conversationHistory = [];
+      let isProcessing = false;
+      let customSystemPrompt = null;
+      let ragContent = null;
+      let editingConfigId = null; // Track if we're editing an existing config
+
+      // Model Picker Configuration
+      let currentProvider = "groq";
+      let currentModel = "";
+      let currentApiKey = "";
+
+      // Provider Models Configuration
+      const providerModels = {
+        groq: [
+          { value: "openai/gpt-oss-120b", label: "🆕 GPT-OSS 120B (Flagship)" },
+          {
+            value: "llama-3.3-70b-versatile",
+            label: "Llama 3.3 70B Versatile",
+          },
+          {
+            value: "meta-llama/llama-4-maverick-17b-128e-instruct",
+            label: "🆕 Llama 4 Maverick 17B",
+          },
+          {
+            value: "meta-llama/llama-4-scout-17b-16e-instruct",
+            label: "🆕 Llama 4 Scout 17B",
+          },
+          { value: "openai/gpt-oss-20b", label: "GPT-OSS 20B" },
+          {
+            value: "llama-3.1-70b-versatile",
+            label: "Llama 3.1 70B Versatile",
+          },
+          { value: "mixtral-8x7b-32768", label: "Mixtral 8x7B" },
+          { value: "gemma2-9b-it", label: "Gemma 2 9B" },
+          {
+            value: "llama-3.1-8b-instant",
+            label: "Llama 3.1 8B Instant (Fast)",
+          },
+        ],
+        openai: [
+          { value: "gpt-4o", label: "GPT-4o (Latest)" },
+          { value: "gpt-4o-mini", label: "GPT-4o Mini (Fast & Cheap)" },
+          { value: "o1-preview", label: "🆕 o1 Preview (Reasoning)" },
+          { value: "o1-mini", label: "🆕 o1 Mini (Reasoning)" },
+          { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+          { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+        ],
+        anthropic: [
+          {
+            value: "claude-sonnet-4-5-20250929",
+            label: "🆕 Claude Sonnet 4.5 (Sept 2025)",
+          },
+          {
+            value: "claude-haiku-4-5-20251001",
+            label: "🆕 Claude Haiku 4.5 (Oct 2025)",
+          },
+          {
+            value: "claude-opus-4-1-20250805",
+            label: "🆕 Claude Opus 4.1 (Aug 2025)",
+          },
+          {
+            value: "claude-3-5-sonnet-20241022",
+            label: "Claude 3.5 Sonnet (Oct 2024)",
+          },
+          { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
+          { value: "claude-3-sonnet-20240229", label: "Claude 3 Sonnet" },
+          { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku (Fast)" },
+        ],
+        azure: [
+          { value: "gpt-4o", label: "GPT-4o" },
+          { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+          { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+          { value: "gpt-4", label: "GPT-4" },
+          { value: "gpt-35-turbo", label: "GPT-3.5 Turbo" },
+        ],
+        vertex_ai: [
+          {
+            value: "gemini-2.0-flash-exp",
+            label: "🆕 Gemini 2.0 Flash (Experimental)",
+          },
+          { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+          { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Fast)" },
+          {
+            value: "gemini-1.5-flash-8b",
+            label: "Gemini 1.5 Flash 8B (Fastest)",
+          },
+          { value: "gemini-pro", label: "Gemini Pro" },
+        ],
+        ollama: [
+          { value: "llama3.2", label: "Llama 3.2 (Latest)" },
+          { value: "llama3.1", label: "Llama 3.1" },
+          { value: "mistral", label: "Mistral" },
+          { value: "codellama", label: "Code Llama" },
+          { value: "phi3", label: "Phi-3" },
+          { value: "qwen2.5", label: "🆕 Qwen 2.5" },
+          { value: "deepseek-r1", label: "🆕 DeepSeek R1 (Reasoning)" },
+        ],
+        huggingface: [
+          {
+            value: "meta-llama/Llama-3.2-11B-Vision-Instruct",
+            label: "🆕 Llama 3.2 11B Vision",
+          },
+          {
+            value: "meta-llama/Llama-3.1-70B-Instruct",
+            label: "Llama 3.1 70B",
+          },
+          {
+            value: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            label: "Mixtral 8x7B",
+          },
+          { value: "Qwen/Qwen2.5-72B-Instruct", label: "🆕 Qwen 2.5 72B" },
+          { value: "microsoft/phi-3-medium", label: "Phi-3 Medium" },
+        ],
+        together_ai: [
+          {
+            value: "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo",
+            label: "🆕 Llama 3.1 405B Turbo",
+          },
+          {
+            value: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            label: "Llama 3.1 70B Turbo",
+          },
+          {
+            value: "Qwen/Qwen2.5-72B-Instruct-Turbo",
+            label: "🆕 Qwen 2.5 72B Turbo",
+          },
+          {
+            value: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            label: "Mixtral 8x7B",
+          },
+          {
+            value: "deepseek-ai/deepseek-coder-33b-instruct",
+            label: "DeepSeek Coder 33B",
+          },
+        ],
+        replicate: [
+          {
+            value: "meta/meta-llama-3.1-405b-instruct",
+            label: "🆕 Llama 3.1 405B",
+          },
+          { value: "meta/llama-3-70b-instruct", label: "Llama 3 70B" },
+          {
+            value: "mistralai/mixtral-8x7b-instruct-v0.1",
+            label: "Mixtral 8x7B",
+          },
+        ],
+        cohere: [
+          {
+            value: "command-r-plus-08-2024",
+            label: "🆕 Command R+ (Aug 2024)",
+          },
+          { value: "command-r-plus", label: "Command R+" },
+          { value: "command-r", label: "Command R" },
+          { value: "command", label: "Command" },
+        ],
+        bedrock: [
+          {
+            value: "anthropic.claude-sonnet-4-5-20250929-v1:0",
+            label: "🆕 Claude Sonnet 4.5",
+          },
+          {
+            value: "anthropic.claude-haiku-4-5-20251001-v1:0",
+            label: "🆕 Claude Haiku 4.5",
+          },
+          {
+            value: "anthropic.claude-opus-4-1-20250805-v1:0",
+            label: "🆕 Claude Opus 4.1",
+          },
+          {
+            value: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            label: "Claude 3.5 Sonnet",
+          },
+          {
+            value: "meta.llama3-1-405b-instruct-v1:0",
+            label: "🆕 Llama 3.1 405B",
+          },
+          { value: "meta.llama3-1-70b-instruct-v1:0", label: "Llama 3.1 70B" },
+        ],
+        perplexity: [
+          {
+            value: "llama-3.1-sonar-large-128k-online",
+            label: "Sonar Large (Online Search)",
+          },
+          {
+            value: "llama-3.1-sonar-small-128k-online",
+            label: "Sonar Small (Online Search)",
+          },
+          {
+            value: "llama-3.1-sonar-huge-128k-online",
+            label: "🆕 Sonar Huge (Online Search)",
+          },
+        ],
+        deepseek: [
+          { value: "deepseek-chat", label: "DeepSeek Chat V3" },
+          { value: "deepseek-reasoner", label: "🆕 DeepSeek R1 (Reasoning)" },
+          { value: "deepseek-coder", label: "DeepSeek Coder V2" },
+        ],
+        xai: [
+          { value: "grok-2-1212", label: "🆕 Grok 2 (Dec 2024)" },
+          { value: "grok-2-vision-1212", label: "🆕 Grok 2 Vision (Dec 2024)" },
+          { value: "grok-beta", label: "Grok Beta" },
+        ],
+      };
+
+      // Provider Info
+      const providerInfo = {
+        groq: "Groq offers free access to fast models like Llama, Mixtral and Gemma",
+        openai: "OpenAI - Requires paid API key (pay-as-you-go)",
+        anthropic:
+          "Anthropic Claude - Advanced models for complex conversations",
+        azure: "Azure OpenAI - Enterprise deployment of OpenAI models",
+        vertex_ai: "Google Vertex AI - Gemini and other Google models",
+        ollama: "Ollama - Run models locally on your computer (free!)",
+        huggingface: "HuggingFace - Access to thousands of open source models",
+        together_ai: "Together AI - Fast inference for open source models",
+        replicate: "Replicate - Run ML models in the cloud",
+        cohere: "Cohere - Models specialized for NLP",
+        bedrock: "AWS Bedrock - Managed service for foundation models",
+        perplexity: "Perplexity AI - Models with integrated web search",
+        deepseek: "DeepSeek - High-performance Chinese open source models",
+        xai: "xAI - Grok, Elon Musk's model",
+      };
+
+      const quickAnimations = [
+        "Wave",
+        "Greeting",
+        "Congratulate",
+        "Explain",
+        "Thinking",
+        "Alert",
+        "Searching",
+        "Writing",
+        "GoodBye",
+        "GetAttention",
+      ];
+
+      // Populate animation grid
+      const animationGrid = document.getElementById("animationGrid");
+      quickAnimations.forEach((anim) => {
+        const btn = document.createElement("button");
+        btn.textContent = anim;
+        btn.onclick = () => playAnimation(anim);
+        animationGrid.appendChild(btn);
+      });
+
+      function updateStatus(message, type = "info") {
+        const indicator = document.getElementById("statusIndicator");
+        const icons = {
+          info: "ℹ️",
+          success: "✅",
+          error: "❌",
+          loading: "⏳",
+        };
+        indicator.textContent = icons[type] + " " + message;
+      }
+
+      function loadAgent(agentName) {
+        updateStatus("Loading " + agentName + "...", "loading");
+
+        if (currentAgent) {
+          currentAgent.hide(true);
+        }
+
+        clippy.load(agentName, function (agent) {
+          currentAgent = agent;
+          currentAgentName = agentName;
+
+          // Position agent in bottom right
+          const previewArea = document.querySelector(".preview-content");
+          const rect = previewArea.getBoundingClientRect();
+          agent.moveTo(rect.right - 150, rect.bottom - 150);
+          agent.show();
+
+          // Setup balloon position tracking
+          setupBalloonTracking();
+
+          // Add click event to Clippy to reopen balloon
+          agent._el.on("click", function () {
+            const balloon = document.getElementById("customBalloon");
+            if (!balloon.classList.contains("show")) {
+              openBalloon();
+            }
+          });
+
+          // Initialize system prompt editor with default value
+          const editor = document.getElementById("systemPromptEditor");
+          if (editor && !editor.value.trim()) {
+            editor.value = `You are ${agentName}, helpful Microsoft Office assistant from the 90s. Be friendly, concise and helpful.`;
+          }
+
+          // Initial greeting with chat balloon
+          showChatBalloon(
+            "Hi! I'm " + agentName + "! How can I help you today? 😊"
+          );
+
+          updateStatus(agentName + " ready!", "success");
+        });
+      }
+
+      function setupBalloonTracking() {
+        // Update balloon position periodically to follow Clippy
+        setInterval(() => {
+          if (currentAgent && currentAgent._el) {
+            updateBalloonPosition();
+          }
+        }, 100); // Check every 100ms
+      }
+
+      function updateBalloonPosition() {
+        if (!currentAgent || !currentAgent._el) return;
+
+        const clippyEl = currentAgent._el[0];
+        const rect = clippyEl.getBoundingClientRect();
+        const balloon = document.getElementById("customBalloon");
+
+        // Position balloon above and to the left of Clippy
+        balloon.style.bottom = window.innerHeight - rect.top + 20 + "px";
+        balloon.style.right = window.innerWidth - rect.right - 50 + "px";
+      }
+
+      // Convert Markdown-style formatting to HTML
+      function parseMarkdown(text) {
+        if (!text) return text;
+
+        // Convert **bold** to <strong>bold</strong>
+        text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+        // Convert *italic* to <em>italic</em> (optional)
+        text = text.replace(/\*(.+?)\*/g, "<em>$1</em>");
+
+        // Convert line breaks
+        text = text.replace(/\n/g, "<br>");
+
+        return text;
+      }
+
+      function showChatBalloon(message) {
+        console.log("📣 showChatBalloon called with:", message);
+        console.trace("📍 Call stack:");
+
+        const balloon = document.getElementById("customBalloon");
+        const messageDiv = document.getElementById("balloonMessage");
+        const input = document.getElementById("clippyInput");
+
+        // Update message (convert Markdown and preserve HTML)
+        if (message && message.trim()) {
+          console.log(
+            "✅ Updating balloon message:",
+            message.substring(0, 50) + "..."
+          );
+          messageDiv.innerHTML = parseMarkdown(message);
+        } else {
+          console.warn("⚠️ Empty message provided to showChatBalloon");
+          console.warn("⚠️ Message value:", JSON.stringify(message));
+          console.warn("⚠️ Message type:", typeof message);
+        }
+
+        // Show balloon
+        balloon.classList.add("show");
+
+        // Update position immediately
+        updateBalloonPosition();
+
+        // Focus input after a delay
+        setTimeout(() => {
+          if (input && !isProcessing) {
+            input.focus();
+          }
+        }, 300);
+      }
+
+      function hideChatBalloon() {
+        const balloon = document.getElementById("customBalloon");
+        balloon.classList.remove("show");
+      }
+
+      function closeBalloon() {
+        hideChatBalloon();
+        if (currentAgent) {
+          currentAgent.play("Wave");
+        }
+      }
+
+      function openBalloon() {
+        if (currentAgent) {
+          showChatBalloon(document.getElementById("balloonMessage").innerHTML);
+          currentAgent.play("GetAttention");
+        }
+      }
+
+      // ========================================
+      // SYSTEM PROMPT & RAG FUNCTIONS
+      // ========================================
+
+      function saveSystemPrompt() {
+        const editor = document.getElementById("systemPromptEditor");
+        customSystemPrompt = editor.value.trim();
+
+        if (customSystemPrompt) {
+          updateStatus("✅ System prompt saved!", "success");
+          setTimeout(() => {
+            win95Alert(
+              "Custom system prompt saved!\n\nIt will be used in the next responses.",
+              "success"
+            );
+          }, 100);
+        } else {
+          customSystemPrompt = null;
+          updateStatus("⚠️ Empty system prompt", "error");
+        }
+      }
+
+      // ============ Model Picker Functions ============
+
+      function initializeModelPicker() {
+        // Load saved provider/model preferences from localStorage (NOT the API key)
+        const savedProvider = localStorage.getItem("ai_provider");
+        const savedModel = localStorage.getItem("ai_model");
+
+        if (savedProvider) {
+          document.getElementById("providerSelect").value = savedProvider;
+          currentProvider = savedProvider;
+        }
+
+        // Populate models for current provider
+        populateModels(currentProvider);
+
+        if (savedModel) {
+          document.getElementById("modelSelect").value = savedModel;
+          currentModel = savedModel;
+        } else {
+          // Set first model as default
+          const modelSelect = document.getElementById("modelSelect");
+          if (modelSelect.options.length > 0) {
+            currentModel = modelSelect.options[0].value;
+          }
+        }
+
+        console.log("📝 Model Picker initialized:", {
+          currentProvider,
+          currentModel,
+        });
+      }
+
+      function onProviderChange() {
+        const providerSelect = document.getElementById("providerSelect");
+        currentProvider = providerSelect.value;
+
+        // Update provider info
+        const infoEl = document.getElementById("providerInfo");
+        infoEl.textContent = providerInfo[currentProvider];
+
+        // Populate models for new provider
+        populateModels(currentProvider);
+
+        // Clear API key field (different provider = different key)
+        document.getElementById("apiKey").value = "";
+        currentApiKey = "";
+
+        // Update API key placeholder
+        updateApiKeyPlaceholder();
+
+        // Save provider selection
+        localStorage.setItem("ai_provider", currentProvider);
+
+        console.log("🔄 Provider changed to:", currentProvider);
+      }
+
+      function populateModels(provider) {
+        const modelSelect = document.getElementById("modelSelect");
+        modelSelect.innerHTML = ""; // Clear existing options
+
+        const models = providerModels[provider] || [];
+
+        models.forEach((model) => {
+          const option = document.createElement("option");
+          option.value = model.value;
+          option.textContent = model.label;
+          modelSelect.appendChild(option);
+        });
+
+        // Set first model as current
+        if (models.length > 0) {
+          currentModel = models[0].value;
+          modelSelect.value = currentModel;
+        }
+
+        console.log(`📋 Loaded ${models.length} models for ${provider}`);
+      }
+
+      function updateApiKeyPlaceholder() {
+        const apiKeyInput = document.getElementById("apiKey");
+        const placeholders = {
+          groq: "gsk_...",
+          openai: "sk-...",
+          anthropic: "sk-ant-...",
+          azure: "Azure API Key",
+          vertex_ai: "Google Cloud Key",
+          ollama: "Not required (local)",
+          huggingface: "hf_...",
+          together_ai: "Together API Key",
+          replicate: "r8_...",
+          cohere: "Cohere API Key",
+          bedrock: "AWS Access Key",
+          perplexity: "pplx-...",
+          deepseek: "DeepSeek API Key",
+          xai: "xai-...",
+        };
+
+        apiKeyInput.placeholder = placeholders[currentProvider] || "API Key...";
+
+        // Disable API key for Ollama (local)
+        if (currentProvider === "ollama") {
+          apiKeyInput.disabled = true;
+          apiKeyInput.value = "";
+          document.getElementById("apiKeyInfo").textContent =
+            "✅ Ollama doesn't require API key (runs locally)";
+        } else {
+          apiKeyInput.disabled = false;
+          document.getElementById("apiKeyInfo").textContent =
+            "🔒 The API key is encrypted and saved on the server. It is never stored in the browser.";
+        }
+      }
+
+      function toggleApiKeyVisibility() {
+        const apiKeyInput = document.getElementById("apiKey");
+        if (apiKeyInput.type === "password") {
+          apiKeyInput.type = "text";
+        } else {
+          apiKeyInput.type = "password";
+        }
+      }
+
+      function reloadAgent() {
+        // Get current selections
+        const providerSelect = document.getElementById("providerSelect");
+        const modelSelect = document.getElementById("modelSelect");
+        const apiKeyInput = document.getElementById("apiKey");
+        const agentSelect = document.getElementById("agentSelect");
+
+        currentProvider = providerSelect.value;
+        currentModel = modelSelect.value;
+        currentApiKey = apiKeyInput.value;
+        const selectedAgent = agentSelect.value;
+
+        // Validate API key (unless Ollama or editing with stored key)
+        if (currentProvider !== "ollama" && !currentApiKey && !editingConfigId) {
+          win95Alert("Enter a valid API key for " + currentProvider, "warning");
+          updateStatus("❌ API key missing", "error");
+          return;
+        }
+
+        // Save provider/model preferences (NOT the API key)
+        localStorage.setItem("ai_provider", currentProvider);
+        localStorage.setItem("ai_model", currentModel);
+
+        // Reload agent
+        loadAgent(selectedAgent);
+
+        updateStatus(
+          `✅ Configurato: ${currentProvider}/${currentModel}`,
+          "success"
+        );
+        console.log("🔧 Configuration updated:", {
+          currentProvider,
+          currentModel,
+          agent: selectedAgent,
+        });
+      }
+
+      async function testConnection() {
+        const statusDiv = document.getElementById("connectionStatus");
+        statusDiv.style.display = "block";
+        statusDiv.style.background = "rgba(33, 150, 243, 0.2)";
+        statusDiv.style.color = "#2196F3";
+        statusDiv.textContent =
+          "🔄 Testing connection to " + currentProvider + "...";
+
+        const apiKeyInput = document.getElementById("apiKey");
+        const apiKey = apiKeyInput.value.trim();
+
+        // In edit mode without API key, test via backend widget chat
+        const useBackendTest = editingConfigId && !apiKey;
+
+        if (!useBackendTest && currentProvider !== "ollama" && !apiKey) {
+          statusDiv.style.background = "rgba(244, 67, 54, 0.2)";
+          statusDiv.style.color = "#f44336";
+          statusDiv.textContent = "❌ Enter an API key first";
+          return;
+        }
+
+        try {
+          let response;
+
+          if (useBackendTest) {
+            // Test via backend using stored API key
+            response = await fetch("/api/widget/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                config_id: editingConfigId,
+                messages: [{ role: "user", content: "Hi" }],
+              }),
+            });
+          } else {
+            // Test via /api/test-connection with provided API key
+            const authToken = localStorage.getItem("clippy_auth_token");
+            response = await fetch("/api/test-connection", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                provider: currentProvider,
+                model: currentModel,
+                api_key: apiKey,
+              }),
+            });
+          }
+
+          if (response.ok) {
+            statusDiv.style.background = "rgba(76, 175, 80, 0.2)";
+            statusDiv.style.color = "#4CAF50";
+            statusDiv.textContent =
+              "✅ Connection successful! Provider: " + currentProvider;
+            setTimeout(() => {
+              statusDiv.style.display = "none";
+            }, 3000);
+          } else {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Connection failed");
+          }
+        } catch (error) {
+          statusDiv.style.background = "rgba(244, 67, 54, 0.2)";
+          statusDiv.style.color = "#f44336";
+          statusDiv.textContent = "❌ Connection failed: " + error.message;
+        }
+      }
+
+      function getApiEndpoint() {
+        const endpoints = {
+          groq: "https://api.groq.com/openai/v1/chat/completions",
+          openai: "https://api.openai.com/v1/chat/completions",
+          anthropic: "https://api.anthropic.com/v1/messages",
+          ollama: "http://localhost:11434/api/chat",
+          together_ai: "https://api.together.xyz/v1/chat/completions",
+          perplexity: "https://api.perplexity.ai/chat/completions",
+          deepseek: "https://api.deepseek.com/v1/chat/completions",
+          xai: "https://api.x.ai/v1/chat/completions",
+          // For other providers, we'd need a proxy (will implement later)
+          default: "https://api.groq.com/openai/v1/chat/completions",
+        };
+
+        return endpoints[currentProvider] || endpoints.default;
+      }
+
+      function getApiHeaders() {
+        const headers = {
+          "Content-Type": "application/json",
+        };
+
+        // Add authorization based on provider
+        if (
+          currentProvider === "openai" ||
+          currentProvider === "groq" ||
+          currentProvider === "together_ai" ||
+          currentProvider === "perplexity" ||
+          currentProvider === "deepseek" ||
+          currentProvider === "xai"
+        ) {
+          headers["Authorization"] = `Bearer ${currentApiKey}`;
+        } else if (currentProvider === "anthropic") {
+          headers["x-api-key"] = currentApiKey;
+          headers["anthropic-version"] = "2023-06-01";
+        }
+        // Ollama doesn't need auth
+
+        return headers;
+      }
+
+      function formatModelName() {
+        // Some providers need model name formatting
+        if (currentProvider === "anthropic") {
+          return currentModel;
+        } else if (currentProvider === "groq") {
+          return currentModel;
+        }
+        // For most providers, return as-is
+        return currentModel;
+      }
+
+      function resetSystemPrompt() {
+        const editor = document.getElementById("systemPromptEditor");
+        const defaultPrompt = `You are ${currentAgentName}, helpful Microsoft Office assistant from the 90s. Be friendly, concise and helpful.`;
+        editor.value = defaultPrompt;
+        customSystemPrompt = null;
+        updateStatus("🔄 System prompt reset", "info");
+      }
+
+      async function fetchFromUrl() {
+        const urlInput = document.getElementById("ragUrlInput");
+        const url = urlInput.value.trim();
+        if (!url) {
+          win95Alert("Enter a URL to fetch!", "warning");
+          return;
+        }
+
+        // Basic URL validation
+        try {
+          new URL(url);
+        } catch {
+          win95Alert("Please enter a valid URL (e.g. https://www.example.com)", "warning");
+          return;
+        }
+
+        const fetchBtn = document.getElementById("fetchUrlBtn");
+        fetchBtn.disabled = true;
+        fetchBtn.textContent = "⏳ Fetching...";
+        updateRAGStatus("🌐 Fetching & processing URL...", "loading");
+
+        try {
+          const authToken = localStorage.getItem("clippy_auth_token");
+          const provider = document.getElementById("providerSelect").value;
+          const model = document.getElementById("modelSelect").value;
+          const apiKey = document.getElementById("apiKey").value.trim();
+
+          const requestBody = { url, provider, model };
+          if (apiKey) requestBody.api_key = apiKey;
+          if (editingConfigId) requestBody.config_id = editingConfigId;
+
+          const response = await fetch("/api/scrape-url", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Failed to fetch URL");
+          }
+
+          const data = await response.json();
+          const textarea = document.getElementById("ragContentArea");
+          textarea.value = data.refined_text;
+          ragContent = data.refined_text;
+
+          const chars = data.refined_text.length;
+          const lines = data.refined_text.split("\n").length;
+          let statusMsg = `✅ Fetched "${data.title}" (${lines} lines, ${chars} chars)`;
+          if (data.warning) statusMsg += ` ⚠️ ${data.warning}`;
+          updateRAGStatus(statusMsg, "success");
+          updateStatus("📚 Knowledge base loaded from URL", "success");
+        } catch (error) {
+          console.error("Error fetching URL:", error);
+          updateRAGStatus("❌ " + error.message, "error");
+          win95Alert("Error fetching URL: " + error.message, "error");
+        } finally {
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = "🌐 Fetch";
+        }
+      }
+
+      async function handleRAGFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        updateRAGStatus("📂 Loading " + file.name + "...", "loading");
+
+        try {
+          const text = await readFileAsText(file);
+          const textarea = document.getElementById("ragContentArea");
+          textarea.value = text;
+
+          // Auto-save
+          ragContent = text;
+          updateRAGStatus(
+            "✅ File loaded: " +
+              file.name +
+              " (" +
+              formatBytes(file.size) +
+              ")",
+            "success"
+          );
+
+          updateStatus("📚 Knowledge base loaded", "success");
+        } catch (error) {
+          console.error("Error reading file:", error);
+          updateRAGStatus("❌ Error loading file", "error");
+          win95Alert("Error loading file: " + error.message, "error");
+        }
+      }
+
+      function readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = (e) => {
+            resolve(e.target.result);
+          };
+
+          reader.onerror = (e) => {
+            reject(new Error("Error reading file"));
+          };
+
+          // Handle different file types
+          if (file.name.endsWith(".pdf")) {
+            win95Alert(
+              "PDF files require an additional library.\nFor now, copy and paste the text manually.",
+              "warning"
+            );
+            reject(new Error("PDF not directly supported"));
+          } else {
+            reader.readAsText(file);
+          }
+        });
+      }
+
+      function saveRAGContent() {
+        const textarea = document.getElementById("ragContentArea");
+        ragContent = textarea.value.trim();
+
+        if (ragContent) {
+          const lines = ragContent.split("\n").length;
+          const chars = ragContent.length;
+          updateRAGStatus(
+            `✅ Knowledge base saved (${lines} lines, ${chars} characters)`,
+            "success"
+          );
+          updateStatus("📚 RAG active", "success");
+        } else {
+          ragContent = null;
+          updateRAGStatus("⚠️ No content to save", "error");
+        }
+      }
+
+      async function clearRAGContent() {
+        const yes = await win95Confirm("Are you sure you want to clear the knowledge base?");
+        if (yes) {
+          ragContent = null;
+          const textarea = document.getElementById("ragContentArea");
+          textarea.value = "";
+          document.getElementById("ragFileInput").value = "";
+          updateRAGStatus("🗑️ Knowledge base cleared", "info");
+          updateStatus("RAG disabled", "info");
+        }
+      }
+
+      function updateRAGStatus(message, type) {
+        const status = document.getElementById("ragStatus");
+        const statusText = document.getElementById("ragStatusText");
+
+        const icons = {
+          info: "ℹ️",
+          success: "✅",
+          error: "❌",
+          loading: "⏳",
+        };
+
+        statusText.innerHTML = icons[type] + " " + message;
+        status.style.display = "block";
+
+        // Hide after 5 seconds for success messages
+        if (type === "success") {
+          setTimeout(() => {
+            status.style.display = "none";
+          }, 5000);
+        }
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
+      }
+
+      function buildSystemPrompt() {
+        const availableAnimations = currentAgent
+          .animations()
+          .map((a) => a.name);
+
+        // Use custom prompt if set, otherwise use default
+        let basePrompt =
+          customSystemPrompt ||
+          `You are ${currentAgentName}, helpful Microsoft Office assistant from the 90s. Be friendly, concise and helpful.`;
+
+        // Add RAG content if available
+        let ragSection = "";
+        if (ragContent && ragContent.length > 0) {
+          ragSection = `\n\n📚 KNOWLEDGE BASE (use this information to answer questions):\n\n${ragContent}\n\nIMPORTANT: When answering, prioritize information from the knowledge base above. If the answer is in the knowledge base, use it. If not, use your general knowledge.\n`;
+        }
+
+        // Build complete prompt
+        const fullPrompt = `${basePrompt}${ragSection}
+
+CRITICAL FORMAT: Always end with "[ANIMATION: AnimationName]"
+NEVER send ONLY animation tag without text!
+
+Available animations you can use:
+${availableAnimations.join(", ")}
+
+Choose the best animation based on context. Common patterns:
+- Greet/Hello → Wave, Greeting
+- Explain/Help → Explain, GestureRight
+- Think/Analyze → Thinking, Searching, Processing, CheckingSomething
+- Happy/Success → Congratulate, GetArtsy, Show
+- Warn/Error → Alert, GetAttention
+- Work tasks → Writing, Save, SendMail, Print
+- Look/Focus → LookLeft, LookRight, LookUp, LookDown
+- Gestures → GestureUp, GestureDown, GestureLeft, GestureRight
+- Special → GetTechy, GetWizardy, GetArtsy
+- Idle → Idle1_1, IdleHeadScratch, IdleFingerTap
+- Bye → GoodBye, RestPose
+
+IMPORTANT: Use ONLY animations from the list above! VARY your choices!
+
+Examples:
+"Certo! Ti spiego subito. [ANIMATION: Explain]"
+"Ottima domanda! [ANIMATION: Thinking]"
+"Fantastico! [ANIMATION: Congratulate]"
+"Ciao! [ANIMATION: Wave]"`;
+
+        return fullPrompt;
+      }
+
+      // ========================================
+      // CHAT FUNCTIONS
+      // ========================================
+
+      async function sendChatMessage() {
+        const input = document.getElementById("clippyInput");
+        if (!input) return;
+
+        const message = input.value.trim();
+        if (!message || isProcessing) return;
+
+        // SEMPRE leggi i valori correnti dai campi input
+        const apiKeyInput = document.getElementById("apiKey");
+        const providerSelect = document.getElementById("providerSelect");
+        const modelSelect = document.getElementById("modelSelect");
+
+        currentProvider = providerSelect.value;
+        currentModel = modelSelect.value;
+        currentApiKey = apiKeyInput.value.trim();
+
+        console.log("🔍 Current config:", {
+          currentProvider,
+          currentModel,
+          hasApiKey: !!currentApiKey,
+        });
+
+        // Check if we can use backend (editing a saved config with stored API key)
+        const useBackendChat = editingConfigId && !currentApiKey;
+
+        // Validate configuration
+        if (!useBackendChat && currentProvider !== "ollama" && !currentApiKey) {
+          win95Alert(
+            "Enter an API Key for " +
+              currentProvider +
+              "!\n\nGo to the Configuration section and enter your key.",
+            "warning"
+          );
+          updateStatus("❌ API key missing", "error");
+          return;
+        }
+
+        if (!currentModel) {
+          win95Alert("Select an AI model!", "warning");
+          updateStatus("❌ Model not selected", "error");
+          return;
+        }
+
+        // Clear input
+        input.value = "";
+
+        isProcessing = true;
+        input.disabled = true;
+        const sendBtn = document.getElementById("sendButton");
+        sendBtn.disabled = true;
+        sendBtn.textContent = "...";
+        document.getElementById("typingIndicator").classList.add("active");
+
+        // Add to history
+        conversationHistory.push({ role: "user", content: message });
+
+        // Animate while thinking - vary the animation
+        const thinkingAnimations = [
+          "Thinking",
+          "Searching",
+          "Processing",
+          "CheckingSomething",
+          "LookDown",
+        ];
+        const randomThinking =
+          thinkingAnimations[
+            Math.floor(Math.random() * thinkingAnimations.length)
+          ];
+
+        // Only play if the agent has this animation
+        if (currentAgent.hasAnimation(randomThinking)) {
+          currentAgent.play(randomThinking);
+        } else {
+          // Fallback to Searching if random one doesn't exist
+          currentAgent.play("Searching");
+        }
+
+        updateStatus(
+          `Thinking... (${currentProvider}/${currentModel})`,
+          "loading"
+        );
+
+        try {
+          let data;
+
+          if (useBackendChat) {
+            // Route through backend - uses stored encrypted API key
+            console.log("📤 Sending via backend /api/widget/chat (config:", editingConfigId, ")");
+
+            const response = await fetch("/api/widget/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                config_id: editingConfigId,
+                messages: conversationHistory,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("❌ Backend API Error:", errorText);
+              throw new Error(`Backend Error: ${errorText}`);
+            }
+
+            data = await response.json();
+          } else {
+            // Direct call to provider API
+            const systemPrompt = buildSystemPrompt();
+
+            const requestBody = {
+              model: formatModelName(),
+              messages: [
+                {
+                  role: "system",
+                  content: systemPrompt,
+                },
+                ...conversationHistory,
+              ],
+              temperature: 0.8,
+              max_tokens: 500,
+            };
+
+            console.log("📤 Sending to:", currentProvider, currentModel);
+            console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
+
+            const endpoint = getApiEndpoint();
+            const headers = getApiHeaders();
+
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: headers,
+              body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("❌ API Error:", errorText);
+              throw new Error(`API Error (${currentProvider}): ${errorText}`);
+            }
+
+            data = await response.json();
+          }
+
+          console.log("📦 Full API response data:", data);
+
+          // Check if response has the expected structure
+          if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error("❌ Invalid API response structure:", data);
+            throw new Error("Invalid API response structure");
+          }
+
+          const fullResponse = data.choices[0].message.content;
+          console.log("🤖 Full AI response:", fullResponse);
+          console.log("🤖 Response type:", typeof fullResponse);
+          console.log(
+            "🤖 Response length:",
+            fullResponse ? fullResponse.length : 0
+          );
+
+          // Check if fullResponse is valid
+          if (
+            !fullResponse ||
+            typeof fullResponse !== "string" ||
+            fullResponse.trim().length === 0
+          ) {
+            console.warn(
+              "⚠️ AI returned empty response. This might be due to:"
+            );
+            console.warn("   - Content moderation filtering");
+            console.warn("   - Context too long (clearing old messages)");
+            console.warn("   - Temporary API issue");
+
+            // Keep only last 4 messages (2 exchanges) to prevent context overflow
+            if (conversationHistory.length > 4) {
+              console.log(
+                "🧹 Trimming conversation history from",
+                conversationHistory.length,
+                "to 4 messages"
+              );
+              conversationHistory = conversationHistory.slice(-4);
+            }
+
+            // Use a friendly fallback
+            const fallbackResponses = [
+              "Sorry, I didn't understand that well. Can you rephrase? 🤔 [ANIMATION: Confused]",
+              "Hmm, I had a small problem. Let's try again! 😅 [ANIMATION: Alert]",
+              "Oops! Can you repeat please? [ANIMATION: DontRecognize]",
+            ];
+            const fullResponse =
+              fallbackResponses[
+                Math.floor(Math.random() * fallbackResponses.length)
+              ];
+            console.log("💬 Using fallback response:", fullResponse);
+          }
+
+          // Parse animation
+          const animationMatch = fullResponse.match(/\[ANIMATION:\s*(\w+)\]/);
+          let responseText = fullResponse
+            .replace(/\[ANIMATION:\s*\w+\]/g, "")
+            .trim();
+          let suggestedAnimation = animationMatch
+            ? animationMatch[1]
+            : "Confused";
+
+          console.log(
+            "📝 Response text after removing animation tag:",
+            responseText
+          );
+          console.log("📝 Response text length:", responseText.length);
+          console.log("🎭 Suggested animation:", suggestedAnimation);
+
+          // Final safety check
+          if (!responseText || responseText.length === 0) {
+            console.warn(
+              "⚠️ Response still empty after all processing, using emergency fallback"
+            );
+            responseText = "Scusa, ho avuto un problema tecnico! �";
+            suggestedAnimation = "Confused";
+          }
+
+          // Add to history
+          conversationHistory.push({
+            role: "assistant",
+            content: responseText,
+          });
+
+          // Show response in balloon
+          currentAgent.stop();
+          showChatBalloon(responseText);
+
+          // Play animation
+          if (currentAgent.hasAnimation(suggestedAnimation)) {
+            setTimeout(() => {
+              currentAgent.play(suggestedAnimation);
+            }, 300);
+          }
+
+          updateStatus("💬 Response: " + suggestedAnimation, "success");
+        } catch (error) {
+          console.error("Error:", error);
+          showChatBalloon("❌ Error: " + error.message + "<br>Try again!");
+          updateStatus("Communication error", "error");
+        }
+
+        isProcessing = false;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Invia";
+        document.getElementById("typingIndicator").classList.remove("active");
+        input.focus();
+      }
+
+      function playAnimation(animName) {
+        if (currentAgent && currentAgent.hasAnimation(animName)) {
+          currentAgent.stop();
+          currentAgent.play(animName);
+          updateStatus("Animation: " + animName, "info");
+        }
+      }
+
+      function reloadAgent() {
+        const agentName = document.getElementById("agentSelect").value;
+        loadAgent(agentName);
+      }
+
+      function testGreeting() {
+        const input = document.getElementById("clippyInput");
+        if (input) {
+          input.value = "Hi Clippy! How are you?";
+          sendChatMessage();
+        }
+      }
+
+      function testHelp() {
+        const input = document.getElementById("clippyInput");
+        if (input) {
+          input.value = "I need help with a project";
+          sendChatMessage();
+        }
+      }
+
+      function testJoke() {
+        const input = document.getElementById("clippyInput");
+        if (input) {
+          input.value = "Tell me a joke!";
+          sendChatMessage();
+        }
+      }
+
+      function stopAgent() {
+        if (currentAgent) {
+          currentAgent.stop();
+          currentAgent.hide();
+          updateStatus("Stopped", "info");
+        }
+      }
+
+      function showAvailableAnimations() {
+        if (currentAgent) {
+          const available = currentAgent.animations().map((a) => a.name);
+          console.log("Available animations:", available);
+          win95Alert(
+            "Animations for " +
+              currentAgentName +
+              " (" +
+              available.length +
+              "):\n\n" +
+              available.join(", "),
+            "info"
+          );
+        }
+      }
+
+      function toggleConsole() {
+        // This just reminds user to open console
+        win95Alert("Press F12 to open the Browser Console and view detailed logs!", "info");
+      }
+
+      function resetConversation() {
+        conversationHistory = [];
+        const input = document.getElementById("clippyInput");
+        if (input) input.value = "";
+        if (currentAgent) {
+          showChatBalloon("Chat reset! I'm ready for a new conversation. 😊");
+        }
+        updateStatus("Chat reset", "success");
+      }
+
+      function copyEmbedCode() {
+        const textarea = document.getElementById("embedCode");
+        textarea.select();
+        document.execCommand("copy");
+        win95Alert("Code copied to clipboard!", "success");
+      }
+
+      async function saveConfigAndGenerateEmbed() {
+        // Check authentication
+        const authToken = localStorage.getItem("clippy_auth_token");
+        if (!authToken) {
+          const yes = await win95Confirm(
+            "You need to login to save configurations.\n\nDo you want to go to the login page?"
+          );
+          if (yes) {
+            window.location.href = "/dashboard.html";
+          }
+          return;
+        }
+
+        // Get current configuration
+        const configName =
+          document.getElementById("configName").value.trim() || "My Clippy";
+        const agentName = document.getElementById("agentSelect").value;
+        const provider = document.getElementById("providerSelect").value;
+        const model = document.getElementById("modelSelect").value;
+        const systemPrompt = document
+          .getElementById("systemPromptEditor")
+          .value.trim();
+        const welcomeMessage = document
+          .getElementById("welcomeMessageEditor")
+          .value.trim();
+        const ragContent = document
+          .getElementById("ragContentArea")
+          .value.trim();
+        const apiKey = document.getElementById("apiKey").value.trim();
+
+        // Validate
+        if (!provider || !model) {
+          win95Alert("Select provider and model before saving!", "warning");
+          return;
+        }
+
+        // API key validation - only required for new configs (not editing) and non-ollama providers
+        const isEditing = editingConfigId !== null;
+        if (provider !== "ollama" && !apiKey && !isEditing) {
+          win95Alert(
+            `Enter the API Key for ${provider}!\n\nThe key will be securely saved on the backend and will NOT be exposed in the widget.`,
+            "warning"
+          );
+          return;
+        }
+
+        updateStatus("💾 Saving configuration...", "loading");
+
+        try {
+          // Determine if we're creating or updating
+          const isEditing = editingConfigId !== null;
+          console.log("🔍 Save mode:", isEditing ? "EDIT" : "CREATE");
+          console.log("🔍 editingConfigId:", editingConfigId);
+
+          const endpoint = isEditing
+            ? `/api/configs/${editingConfigId}`
+            : "/api/configs";
+          const method = isEditing ? "PUT" : "POST";
+
+          console.log("🔍 Endpoint:", endpoint);
+          console.log("🔍 Method:", method);
+
+          // Prepare request body
+          const requestBody = {
+            name: configName,
+            description: `${agentName} con ${provider}/${model}`,
+            agent: agentName,
+            provider: provider,
+            model: model,
+            system_prompt: systemPrompt || null,
+            welcome_message: welcomeMessage || null,
+            rag_content: ragContent || null,
+            temperature: 0.8,
+            max_tokens: 500,
+          };
+
+          // Only include API key if it's provided (for updates, it's optional)
+          if (apiKey) {
+            requestBody.api_key = apiKey;
+          }
+
+          // Save configuration to backend (API key will be encrypted)
+          const response = await fetch(endpoint, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to save configuration");
+          }
+
+          const data = await response.json();
+          const configId = isEditing ? editingConfigId : data.config_id;
+
+          console.log("✅ Configuration saved:", data);
+
+          // Generate embed code with instructions
+          const backendUrl = window.location.origin;
+          const embedCode = `<!-- ✨ Clippy AI Widget - Ready to use! ✨ -->
+
+<!-- 1. COPY this code before the closing </body> tag -->
+<script src="${backendUrl}/static/clippy-embed.js" data-config-id="${configId}"><\/script>
+
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║  📋 CONFIGURATION SAVED                                      ║
+╠══════════════════════════════════════════════════════════════╣
+║  ID:          ${configId}                                    ║
+║  Name:        ${configName}                                  ║
+║  Agent:       ${agentName}                                   ║
+║  Provider:    ${provider}                                    ║
+║  Model:       ${model}                                       ║
+╠══════════════════════════════════════════════════════════════╣
+║  🔒 SECURITY                                                 ║
+║  - API key encrypted on backend                             ║
+║  - NOT exposed in the code                                  ║
+║  - Each site can have its own configuration                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  💡 NOTES                                                    ║
+║  - Widget auto-initializes                                  ║
+║  - Clippy appears in bottom right                           ║
+║  - You can use the same ID on multiple pages                ║
+║  - Create new configurations for different sites            ║
+╚══════════════════════════════════════════════════════════════╝
+-->`;
+
+          // Show embed output
+          document.getElementById("configIdDisplay").textContent = configId;
+          document.getElementById("embedCode").value = embedCode;
+          document.getElementById("embedOutput").style.display = "block";
+
+          const successMessage = isEditing
+            ? `✅ Configuration updated! ID: ${configId}`
+            : `✅ Configuration saved! ID: ${configId}`;
+
+          updateStatus(successMessage, "success");
+
+          // Show success message in balloon
+          if (currentAgent) {
+            const balloonMessage = isEditing
+              ? `🎉 Perfect! I've updated the configuration "<strong>${configName}</strong>".<br><br>` +
+                `<strong>ID:</strong> <code>${configId}</code><br><br>` +
+                `Changes are active <strong>immediately</strong> on all sites where this Clippy is installed!<br><br>` +
+                `<a href="/dashboard.html" style="color: #667eea;">← Back to Dashboard</a>`
+              : `🎉 Perfect! I've saved the configuration "<strong>${configName}</strong>".<br><br>` +
+                `<strong>ID:</strong> <code>${configId}</code><br><br>` +
+                `Copy the code below and paste it in your site before the closing &lt;/body&gt; tag!`;
+
+            showChatBalloon(balloonMessage);
+            currentAgent.play("Congratulate");
+          }
+        } catch (error) {
+          console.error("Error saving config:", error);
+          updateStatus("❌ Error saving", "error");
+          win95Alert("Error: " + error.message, "error");
+        }
+      }
+
+      // Check authentication and display user info
+      async function checkAuth() {
+        const authToken = localStorage.getItem("clippy_auth_token");
+        if (authToken) {
+          try {
+            const response = await fetch("/api/auth/me", {
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+              },
+            });
+
+            if (response.ok) {
+              const user = await response.json();
+              document.getElementById(
+                "userInfoDisplay"
+              ).textContent = `👤 ${user.username}`;
+              document.getElementById("authHeader").style.display = "flex";
+            } else {
+              // Token invalid, remove it
+              localStorage.removeItem("clippy_auth_token");
+            }
+          } catch (error) {
+            console.error("Auth check failed:", error);
+          }
+        }
+      }
+
+      // Load configuration for editing
+      async function loadConfigForEdit(configId) {
+        console.log("🔍 loadConfigForEdit called with configId:", configId);
+        console.log("🔍 editingConfigId before load:", editingConfigId);
+
+        const authToken = localStorage.getItem("clippy_auth_token");
+        if (!authToken) {
+          win95Alert("You need to login to edit configurations.", "warning").then(function () {
+            window.location.href = "/dashboard.html";
+          });
+          return;
+        }
+
+        updateStatus(`📥 Loading configuration ${configId}...`, "loading");
+
+        try {
+          const response = await fetch(`/api/configs/${configId}`, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error("Configuration not found");
+          }
+
+          const config = await response.json();
+          console.log("✅ Configuration loaded:", config);
+
+          // Update current provider and model FIRST
+          currentProvider = config.provider;
+          currentModel = config.model;
+
+          // Populate form fields
+          document.getElementById("configName").value = config.name || "";
+          document.getElementById("agentSelect").value =
+            config.agent || "Clippy";
+          document.getElementById("providerSelect").value = config.provider;
+
+          // Populate models for this provider WITHOUT calling onProviderChange (which clears API key)
+          populateModels(config.provider);
+
+          // Set model value
+          document.getElementById("modelSelect").value = config.model;
+
+          // Update provider info
+          const infoEl = document.getElementById("providerInfo");
+          infoEl.textContent = providerInfo[config.provider] || "";
+
+          // Set system prompt, welcome message, and RAG content
+          document.getElementById("systemPromptEditor").value =
+            config.system_prompt || "";
+          customSystemPrompt = config.system_prompt;
+
+          document.getElementById("welcomeMessageEditor").value =
+            config.welcome_message || "";
+
+          document.getElementById("ragContentArea").value =
+            config.rag_content || "";
+          ragContent = config.rag_content;
+
+          // For API key, show a placeholder indicating it's already saved
+          const apiKeyInput = document.getElementById("apiKey");
+          apiKeyInput.placeholder =
+            "🔒 API Key already saved (leave empty to keep existing one)";
+          apiKeyInput.value = ""; // Don't show the actual key for security
+
+          // Update UI to show we're editing
+          const saveButton = document.querySelector(
+            'button[onclick="saveConfigAndGenerateEmbed()"]'
+          );
+          if (saveButton) {
+            saveButton.innerHTML = "💾 Update Configuration";
+          }
+
+          updateStatus(
+            `✅ Configuration ${configId} loaded - Edit Mode`,
+            "success"
+          );
+
+          // Show message in balloon after agent loads
+          setTimeout(() => {
+            if (currentAgent) {
+              showChatBalloon(
+                `📝 You're editing the configuration "<strong>${config.name}</strong>".<br><br>` +
+                  `<strong>ID:</strong> <code>${configId}</code><br><br>` +
+                  `Edit the fields you want to update and click "Update Configuration".<br><br>` +
+                  `💡 <em>The API key is already saved. Leave the field empty to keep it.</em>`
+              );
+              currentAgent.play("Explain");
+            }
+          }, 1000);
+
+          console.log("✅ Configuration loaded successfully");
+          console.log("🔍 editingConfigId after load:", editingConfigId);
+        } catch (error) {
+          console.error("Error loading config:", error);
+          updateStatus("❌ Error loading", "error");
+          win95Alert("Unable to load configuration: " + error.message, "error").then(function () {
+            window.location.href = "/dashboard.html";
+          });
+        }
+      }
+
+      // Initialize on load
+      window.addEventListener("load", async function () {
+        console.log("🔍 Page loaded, initializing...");
+
+        // Check authentication
+        checkAuth();
+
+        // Check if we're in edit mode FIRST
+        const urlParams = new URLSearchParams(window.location.search);
+        const editConfigId = urlParams.get("edit");
+
+        console.log("🔍 URL params edit:", editConfigId);
+
+        if (editConfigId) {
+          console.log("🔍 EDIT MODE detected");
+          // Edit mode - load config first, THEN initialize
+          editingConfigId = editConfigId;
+          console.log("🔍 Set editingConfigId to:", editingConfigId);
+          await loadConfigForEdit(editConfigId);
+        } else {
+          console.log("🔍 NORMAL MODE detected");
+          // Normal mode - initialize with defaults
+          initializeModelPicker();
+        }
+
+        if (typeof clippy !== "undefined") {
+          setTimeout(() => {
+            const agentName =
+              document.getElementById("agentSelect").value || "Clippy";
+            loadAgent(agentName);
+          }, 500);
+        } else {
+          updateStatus("Errore: Clippy non caricato", "error");
+        }
+
+        // Initialize sidebar resize functionality
+        initSidebarResize();
+      });
+
+      // Sidebar Resize Functionality
+      function initSidebarResize() {
+        const resizeHandle = document.getElementById("resizeHandle");
+        const controlPanel = document.getElementById("controlPanel");
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        resizeHandle.addEventListener("mousedown", function (e) {
+          isResizing = true;
+          startX = e.clientX;
+          startWidth = controlPanel.offsetWidth;
+          document.body.style.cursor = "ew-resize";
+          document.body.style.userSelect = "none";
+          e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", function (e) {
+          if (!isResizing) return;
+
+          const deltaX = e.clientX - startX;
+          const newWidth = startWidth + deltaX;
+
+          // Apply min and max constraints
+          if (newWidth >= 200 && newWidth <= 600) {
+            controlPanel.style.width = newWidth + "px";
+          }
+        });
+
+        document.addEventListener("mouseup", function () {
+          if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+          }
+        });
+
+        // Also handle when mouse leaves the window
+        document.addEventListener("mouseleave", function () {
+          if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
