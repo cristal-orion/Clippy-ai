@@ -10,6 +10,8 @@ Clippy AI Platform lets you bring back the legendary Microsoft Office assistants
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
 
+**Live Demo:** [https://clippyai.duckdns.org](https://clippyai.duckdns.org)
+
 ## Screenshots
 
 ### Dashboard
