@@ -47,5 +47,3 @@ runtime.txt
 config-dashboard.html
 SECURITY-ARCHITECTURE.md
 
-# Large media files (videos)
-*.mp4
