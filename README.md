@@ -1,12 +1,22 @@
 # Clippy AI Platform
 
-A self-hosted platform to create and embed AI-powered assistants on any website, styled as the classic Microsoft Office assistants (Clippy, Merlin, Rover, etc.).
+> **"It looks like you're building a website... Would you like help with that?"**
+>
+> Remember Clippy? He's back. But this time, he's powered by AI and he actually knows what he's talking about.
 
-Each assistant connects to your choice of AI provider (Groq, OpenAI, Anthropic, Ollama, and more) via [LiteLLM](https://github.com/BerriAI/litellm), with a full dashboard to manage configurations, knowledge bases (RAG), and embeddable widgets.
+Clippy AI Platform lets you bring back the legendary Microsoft Office assistants — Clippy, Merlin, Rover, Bonzi and friends — as real AI-powered chatbots on your website. Pick your favorite retro assistant, connect any AI model, teach it about your business with a knowledge base, and embed it anywhere with a single line of code. It's nostalgia meets modern AI, wrapped in a glorious Windows 95 interface.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
+
+## Screenshots
+
+### Dashboard
+![Dashboard](Dashboard.png)
+
+### Configuration Platform
+![Platform](platform.png)
 
 ## Features
 
