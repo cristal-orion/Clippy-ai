@@ -57,6 +57,11 @@ class ClippyConfigBase(BaseModel):
     temperature: Optional[float] = Field(default=0.8, ge=0.0, le=2.0)
     max_tokens: Optional[int] = Field(default=500, ge=10, le=4000)
     allowed_domains: Optional[List[str]] = None
+    ui_mode: str = "classic"
+    accent_color: Optional[str] = "#4f46e5"
+    dark_mode: Optional[bool] = False
+    web_search_enabled: Optional[bool] = False
+    max_messages_per_conversation: Optional[int] = Field(default=0, ge=0, le=1000)
 
 class ClippyConfigCreate(ClippyConfigBase):
     """Schema for creating a Clippy configuration"""
@@ -76,6 +81,11 @@ class ClippyConfigUpdate(BaseModel):
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     max_tokens: Optional[int] = Field(None, ge=10, le=4000)
     allowed_domains: Optional[List[str]] = None
+    ui_mode: Optional[str] = None
+    accent_color: Optional[str] = None
+    dark_mode: Optional[bool] = None
+    web_search_enabled: Optional[bool] = None
+    max_messages_per_conversation: Optional[int] = Field(None, ge=0, le=1000)
 
 class ClippyConfigResponse(BaseModel):
     """Schema for Clippy configuration response (no API key)"""
@@ -92,6 +102,11 @@ class ClippyConfigResponse(BaseModel):
     temperature: float
     max_tokens: int
     allowed_domains: Optional[str]  # JSON string
+    ui_mode: str
+    accent_color: Optional[str]
+    dark_mode: Optional[bool]
+    web_search_enabled: Optional[bool]
+    max_messages_per_conversation: Optional[int]
     usage_count: int
     created_at: datetime
     updated_at: Optional[datetime]

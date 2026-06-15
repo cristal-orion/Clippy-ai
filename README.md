@@ -6,6 +6,8 @@
 
 Clippy AI Platform lets you bring back the legendary Microsoft Office assistants — Clippy, Merlin, Rover, Bonzi and friends — as real AI-powered chatbots on your website. Pick your favorite retro assistant, connect any AI model, teach it about your business with a knowledge base, and embed it anywhere with a single line of code. It's nostalgia meets modern AI, wrapped in a glorious Windows 95 interface.
 
+Not into nostalgia? The same widget ships in a **modern mode** too — a clean floating chat bubble you can drop on any site, with a configurable accent color and light/dark theme. Same backend, same one-line embed.
+
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
@@ -22,12 +24,15 @@ Clippy AI Platform lets you bring back the legendary Microsoft Office assistants
 
 ## Features
 
+- **Two Widget Modes** — **Classic** retro agents (Clippy & friends in a yellow speech balloon) or a **Modern** floating chat bubble with a configurable accent color + light/dark theme. Set per configuration; existing configs keep working as `classic`.
 - **Multiple AI Providers** — Groq, OpenAI, Anthropic, Google, Ollama (local), and 15+ more via LiteLLM
 - **Classic Agents** — Clippy, Merlin, Rover, Bonzi, Genie, Links, and more
+- **Native Web Search** — Optionally ground answers with the provider's built-in web search (OpenAI, Anthropic, Gemini, xAI, Perplexity). No extra search API key — it reuses the provider key you already configured, and is silently ignored for providers that don't support it.
+- **Per-Conversation Message Cap** — Limit how many messages a single conversation can send (e.g. 10), enforced server-side. `0` means unlimited.
 - **Knowledge Base (RAG)** — Upload files, paste text, or fetch and auto-process any URL with AI refinement
 - **Embeddable Widget** — One `<script>` tag to add the assistant to any website
 - **User Authentication** — JWT-based multi-user system with encrypted API key storage
-- **Windows 95/98 UI** — Faithful retro design with gradient title bars and classic styling
+- **Windows 98 Config UI** — Faithful retro editor with a Windows-style menu bar and dialog windows for each settings group
 - **Domain Whitelisting** — Restrict which domains can use your widget
 - **Docker Ready** — One command to deploy
 
@@ -182,12 +187,14 @@ Go to the dashboard and create an account.
 
 ### 2. Create a Configuration
 
-- Choose an agent (Clippy, Merlin, Rover, etc.)
-- Select an AI provider and model
-- Enter your API key (stored encrypted on the server, never exposed to the browser)
-- Customize the system prompt and welcome message
-- Optionally add a knowledge base: paste text, upload a `.txt`/`.md` file, or fetch from a URL
-- Save the configuration
+The editor is organized like a classic Windows program — a menu bar (**Setup · Interface · Test · Deploy**) opens dialog windows for each group of settings:
+
+- **Setup → AI Provider & Model** — select a provider and model, enter your API key (stored encrypted on the server, never exposed to the browser)
+- **Setup → System Prompt / Welcome Message** — customize the assistant's behavior and first greeting
+- **Setup → Knowledge Base (RAG)** — paste text, upload a `.txt`/`.md` file, or fetch and auto-refine a URL
+- **Interface → Mode & Appearance** — pick **Classic** (choose an agent: Clippy, Merlin, Rover…) or **Modern** (set an accent color and light/dark theme)
+- **Interface → Behavior & Limits** — toggle **web search** and set the **max messages per conversation** (`0` = unlimited)
+- **Deploy → Save & Generate Embed** — save the configuration and copy the embed snippet
 
 ### 3. Embed on Your Website
 
@@ -258,6 +265,8 @@ Via LiteLLM, the platform supports:
 | Cohere | Yes |
 | Replicate | Yes |
 | HuggingFace | Yes |
+
+> **Native web search** is available on providers whose APIs support it — currently **OpenAI, Anthropic, Gemini (Vertex AI), xAI, and Perplexity**. Enable it per configuration under *Interface → Behavior & Limits*; it's silently ignored for providers that don't support it.
 
 ## License
 

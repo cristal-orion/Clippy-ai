@@ -77,6 +77,10 @@ DEFAULT_API_KEY = os.getenv("DEFAULT_API_KEY", "")
 rate_limit_requests = {}
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
+# Providers whose APIs support native web search via LiteLLM's web_search_options.
+# The toggle is silently ignored for any provider not in this set.
+WEB_SEARCH_PROVIDERS = {"openai", "anthropic", "gemini", "vertex_ai", "xai", "perplexity"}
+
 # ============ Helper Functions ============
 
 def encrypt_api_key(api_key: str) -> str:
@@ -251,6 +255,11 @@ async def create_config(
         rag_content=config_data.rag_content,
         temperature=config_data.temperature,
         max_tokens=config_data.max_tokens,
+        ui_mode=config_data.ui_mode,
+        accent_color=config_data.accent_color,
+        dark_mode=config_data.dark_mode,
+        web_search_enabled=config_data.web_search_enabled,
+        max_messages_per_conversation=config_data.max_messages_per_conversation,
         allowed_domains=allowed_domains_json,
         user_id=current_user.id
     )
@@ -397,6 +406,7 @@ async def widget_get_config(config_id: str, req: Request, db: Session = Depends(
 
     return {
         "config": {
+            "name": config.name,
             "agent": config.agent,
             "provider": config.provider,
             "model": config.model,
@@ -404,6 +414,10 @@ async def widget_get_config(config_id: str, req: Request, db: Session = Depends(
             "welcome_message": config.welcome_message,
             "temperature": config.temperature,
             "max_tokens": config.max_tokens,
+            "ui_mode": config.ui_mode or "classic",
+            "accent_color": config.accent_color or "#4f46e5",
+            "dark_mode": bool(config.dark_mode),
+            "max_messages_per_conversation": config.max_messages_per_conversation or 0,
         }
     }
 
@@ -474,6 +488,20 @@ async def widget_chat(
             detail="Configuration not found"
         )
 
+    # Per-conversation message cap (server-side gate, "a monte").
+    # The widget resends the full history each turn, so the user-message count
+    # grows with the conversation. Checked before usage_count so blocked turns
+    # don't inflate usage. Honest caveat: a user clearing client history starts
+    # a fresh conversation; per-IP check_rate_limit still bounds raw volume.
+    limit = config.max_messages_per_conversation or 0
+    if limit > 0:
+        user_msgs = sum(1 for m in request.messages if m.role == "user")
+        if user_msgs > limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Conversation limit reached ({limit} messages).",
+            )
+
     # Update usage stats
     config.usage_count += 1
     config.last_used = datetime.utcnow()
@@ -488,8 +516,10 @@ async def widget_chat(
     if config.rag_content:
         system_prompt += f"\n\nKNOWLEDGE BASE:\n{config.rag_content}\n\nUse this information to answer questions."
 
-    # Add animation instructions
-    system_prompt += """
+    # Add animation instructions — classic (ClippyJS) mode only.
+    # In modern mode this suffix would leak as literal text in the chat bubble.
+    if (config.ui_mode or "classic") == "classic":
+        system_prompt += """
 
 CRITICAL FORMAT: Always end with "[ANIMATION: AnimationName]"
 Choose animations based on context: Wave (greeting), Explain (help), Thinking (analyzing), Congratulate (success), Alert (warning).
@@ -508,11 +538,18 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
         # Set API key in environment
         os.environ[f"{config.provider.upper()}_API_KEY"] = api_key
 
+        # Native web search — only for providers whose APIs support it.
+        # Unsupported providers silently ignore the toggle rather than erroring.
+        extra_kwargs = {}
+        if config.web_search_enabled and config.provider in WEB_SEARCH_PROVIDERS:
+            extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
+
         response = await acompletion(
             model=model_name,
             messages=messages,
             temperature=config.temperature,
-            max_tokens=config.max_tokens
+            max_tokens=config.max_tokens,
+            **extra_kwargs
         )
 
         content = response.choices[0].message.content

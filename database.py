@@ -46,7 +46,28 @@ def get_db():
     finally:
         db.close()
 
+def ensure_columns():
+    """Add any missing columns to existing tables (lightweight SQLite migration)."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "clippy_configs" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("clippy_configs")}
+    additions = {
+        "ui_mode": "VARCHAR(20) DEFAULT 'classic'",
+        "accent_color": "VARCHAR(20) DEFAULT '#4f46e5'",
+        "dark_mode": "BOOLEAN DEFAULT 0",
+        "web_search_enabled": "BOOLEAN DEFAULT 0",
+        "max_messages_per_conversation": "INTEGER DEFAULT 0",
+    }
+    with engine.begin() as conn:
+        for col, ddl in additions.items():
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE clippy_configs ADD COLUMN {col} {ddl}"))
+                print(f"🔧 Migration: added column clippy_configs.{col}")
+
 def init_db():
     """Initialize database tables"""
     Base.metadata.create_all(bind=engine)
+    ensure_columns()
     print("✅ Database initialized successfully!")

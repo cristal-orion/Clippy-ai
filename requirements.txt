@@ -8,7 +8,8 @@ pydantic[email]>=2.9.2
 email-validator>=2.0.0
 
 # LiteLLM - Universal AI provider router
-litellm==1.52.8
+# >=1.81.0 required for native cross-provider web search via web_search_options
+litellm>=1.81.0
 
 # Environment variables
 python-dotenv==1.0.1

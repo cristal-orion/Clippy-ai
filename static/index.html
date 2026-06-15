@@ -696,6 +696,446 @@
       .win95-popup-btn-primary {
         font-weight: bold;
       }
+
+      /* ============ App chrome: header / menu bar / toolbar ============ */
+      .platform-container {
+        flex-direction: column; /* stack header → menu → toolbar → preview */
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        padding: 4px 8px;
+        border-bottom: 1px solid #000000;
+      }
+
+      .app-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .app-header-logo {
+        width: 28px;
+        height: 28px;
+        image-rendering: pixelated;
+      }
+
+      .app-header-title {
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 1em;
+      }
+
+      .app-header-sub {
+        color: #cde3ff;
+        font-size: 0.72em;
+      }
+
+      /* Auth header now lives inline inside the title bar */
+      .app-header .auth-header {
+        position: static;
+        top: auto;
+        right: auto;
+      }
+
+      /* Windows-style menu bar */
+      .menu-bar {
+        display: flex;
+        background: #c0c0c0;
+        border-bottom: 1px solid #808080;
+        box-shadow: inset 0 1px 0 #ffffff;
+        padding: 1px 2px;
+        position: relative;
+        z-index: 300;
+      }
+
+      .menu-item {
+        position: relative;
+      }
+
+      .menu-button {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #000000;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        font-size: 0.85em;
+        padding: 3px 12px;
+        cursor: pointer;
+      }
+
+      .menu-item.open .menu-button,
+      .menu-item:hover .menu-button {
+        border-color: #ffffff #808080 #808080 #ffffff;
+        background: #d8d8d8;
+      }
+
+      .menu-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        min-width: 240px;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
+        padding: 2px;
+        z-index: 400;
+      }
+
+      .menu-item.open .menu-dropdown {
+        display: block;
+      }
+
+      .menu-dropdown button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: none;
+        padding: 5px 14px;
+        font-size: 0.82em;
+        cursor: pointer;
+        color: #000000;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+      }
+
+      .menu-dropdown button:hover {
+        background: #000080;
+        color: #ffffff;
+      }
+
+      /* Toolbar */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #c0c0c0;
+        border-bottom: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        box-shadow: inset 0 1px 0 #ffffff;
+        padding: 5px 8px;
+      }
+
+      .toolbar button {
+        padding: 4px 12px;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        background: #c0c0c0;
+        cursor: pointer;
+        font-size: 0.82em;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        color: #000000;
+      }
+
+      .toolbar button:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+        padding: 5px 11px 3px 13px;
+      }
+
+      .toolbar-status {
+        margin-left: auto;
+        margin-bottom: 0;
+        min-width: 180px;
+        max-width: 360px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ============ Settings modals ============ */
+      .settings-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 50000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .settings-overlay.show {
+        display: flex;
+      }
+
+      .settings-modal {
+        display: none;
+        flex-direction: column;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+        width: 540px;
+        max-width: 94vw;
+        max-height: 88vh;
+        animation: win95PopIn 0.15s ease-out;
+      }
+
+      .settings-modal.show {
+        display: flex;
+      }
+
+      .settings-modal-titlebar {
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        color: #ffffff;
+        padding: 4px 6px;
+        font-size: 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+      }
+
+      .settings-modal-body {
+        padding: 14px 16px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .settings-modal-body .control-group {
+        margin-bottom: 12px;
+      }
+
+      .settings-modal-footer {
+        padding: 8px 16px;
+        border-top: 1px solid #808080;
+        box-shadow: inset 0 1px 0 #ffffff;
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .settings-modal-footer button {
+        padding: 4px 16px;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        background: #c0c0c0;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        color: #000000;
+        margin: 0;
+      }
+
+      .settings-modal-footer button:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+      }
+
+      .modal-subhead {
+        background: linear-gradient(to right, #00017f, #0e81d1);
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 0.85em;
+        padding: 3px 6px;
+        margin: 4px 0 8px 0;
+      }
+
+      /* ============ Chrome polish (readability + Win98 feel) ============ */
+      .app-header {
+        padding: 6px 10px;
+        border-top: 1px solid #2a4fc0;
+        border-bottom: 2px solid #000000;
+      }
+      .app-header-iconbox {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #808080 #808080 #ffffff;
+        flex-shrink: 0;
+      }
+      .app-header-logo {
+        width: 30px;
+        height: 30px;
+        image-rendering: pixelated;
+      }
+      .app-header-titles {
+        line-height: 1.18;
+      }
+      .app-header-title {
+        font-size: 1.22em;
+        letter-spacing: 0.2px;
+        text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.45);
+      }
+      .app-header-sub {
+        font-size: 0.8em;
+        color: #d6e6ff;
+      }
+      .app-header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .win-buttons {
+        display: flex;
+        gap: 3px;
+      }
+      .win-btn {
+        width: 22px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        font-size: 11px;
+        color: #000000;
+        line-height: 1;
+        user-select: none;
+      }
+      .win-btn-close {
+        font-weight: bold;
+      }
+
+      /* Menu bar — larger, clearer */
+      .menu-bar {
+        padding: 2px 4px;
+      }
+      .menu-button {
+        font-size: 0.92em;
+        padding: 5px 16px;
+      }
+      .menu-dropdown {
+        min-width: 252px;
+      }
+      .menu-dropdown button {
+        font-size: 0.88em;
+        padding: 7px 16px;
+      }
+
+      /* Toolbar — Office-style flat buttons that raise on hover */
+      .toolbar {
+        gap: 4px;
+        padding: 6px 10px;
+        min-height: 44px;
+      }
+      .toolbar .tbtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        font-size: 0.86em;
+        font-weight: bold;
+        background: transparent;
+        border: 2px solid transparent;
+        color: #000000;
+        cursor: pointer;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+      }
+      .toolbar .tbtn:hover {
+        border-color: #ffffff #808080 #808080 #ffffff;
+        background: #d4d0c8;
+      }
+      .toolbar .tbtn:active {
+        border-color: #808080 #ffffff #ffffff #808080;
+        background: #c0c0c0;
+        padding: 7px 11px 5px 13px;
+      }
+      .tbtn-ico {
+        font-size: 1.2em;
+        line-height: 1;
+      }
+      .toolbar .tbtn-primary {
+        color: #000080;
+      }
+      .toolbar-sep {
+        width: 0;
+        height: 26px;
+        margin: 0 6px;
+        border-left: 1px solid #808080;
+        border-right: 1px solid #ffffff;
+      }
+
+      /* Status bar — classic sunken panels */
+      .status-bar {
+        display: flex;
+        gap: 3px;
+        align-items: stretch;
+        background: #c0c0c0;
+        padding: 3px 4px;
+        border-top: 2px solid;
+        border-color: #ffffff #808080 #808080 #ffffff;
+      }
+      .status-bar-panel {
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #808080 #ffffff #ffffff #808080;
+        padding: 3px 10px;
+        font-size: 0.78em;
+        color: #000000;
+        display: flex;
+        align-items: center;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+      }
+      .status-bar-main {
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .status-bar-mode {
+        min-width: 150px;
+        justify-content: center;
+        font-weight: bold;
+      }
+
+      /* Readability fixes for helper text moved from the old dark sidebar
+         onto the light (silver) modal background */
+      .settings-modal-body p {
+        opacity: 1 !important;
+        color: #202020;
+      }
+      .settings-modal-body #apiKeyInfo {
+        color: #0a6b0a !important;
+      }
+      .settings-modal-body #ragUrlInput {
+        color: #000000 !important;
+        background: #ffffff !important;
+        border: 2px solid !important;
+        border-color: #808080 #ffffff #ffffff #808080 !important;
+      }
+      /* Faint translucent info boxes → subtle readable panel on silver */
+      .settings-modal-body div[style*="rgba(255, 255, 255"] {
+        background: rgba(0, 0, 0, 0.05) !important;
+      }
+
+      /* Single-level menu bar: caret, right-aligned quick action */
+      .menu-caret {
+        font-size: 0.7em;
+        opacity: 0.55;
+        margin-left: 1px;
+      }
+      .menu-spacer {
+        flex: 1;
+      }
+      .menu-action {
+        align-self: center;
+        margin-right: 4px;
+        padding: 4px 14px;
+        background: #c0c0c0;
+        border: 2px solid;
+        border-color: #ffffff #000000 #000000 #ffffff;
+        cursor: pointer;
+        font-size: 0.85em;
+        font-weight: bold;
+        font-family: "Tahoma", "MS Sans Serif", Arial, sans-serif;
+        color: #000000;
+      }
+      .menu-action:active {
+        border-color: #000000 #ffffff #ffffff #000000;
+        padding: 5px 13px 3px 15px;
+      }
     </style>
   </head>
   <body>
@@ -805,32 +1245,108 @@
       })();
     </script>
 
-    <!-- Auth Header -->
-    <div class="auth-header" id="authHeader" style="display: none">
-      <span class="user-info" id="userInfoDisplay"></span>
-      <a href="/dashboard.html">📊 Dashboard</a>
-    </div>
-
     <div class="platform-container">
-      <!-- Control Panel -->
-      <div class="control-panel" id="controlPanel">
-        <div class="resize-handle" id="resizeHandle"></div>
-        <img
-          src="/static/clippy-logotipo.png"
-          alt="Clippy AI Platform"
-          class="control-panel-logo"
-        />
-        <p style="font-size: 0.85em; opacity: 0.9; margin-bottom: 20px">
-          Test, configure and embed Clippy on your site
-        </p>
+      <!-- App title bar -->
+      <div class="app-header">
+        <div class="app-header-left">
+          <span class="app-header-iconbox">
+            <img src="/static/clippy-icon.png" alt="Clippy" class="app-header-logo" />
+          </span>
+          <div class="app-header-titles">
+            <div class="app-header-title">Clippy AI Platform</div>
+            <div class="app-header-sub">
+              Test, configure and embed Clippy on your site
+            </div>
+          </div>
+        </div>
+        <div class="app-header-right">
+          <div class="auth-header" id="authHeader" style="display: none">
+            <span class="user-info" id="userInfoDisplay"></span>
+            <a href="/dashboard.html">📊 Dashboard</a>
+          </div>
+          <div class="win-buttons" aria-hidden="true">
+            <span class="win-btn">&#8211;</span>
+            <span class="win-btn">&#9633;</span>
+            <span class="win-btn win-btn-close">&#10005;</span>
+          </div>
+        </div>
+      </div>
 
-        <div class="status-indicator" id="statusIndicator">
-          ⏳ Initializing...
+      <!-- Menu bar (Windows-style, single level) -->
+      <div class="menu-bar" id="menuBar">
+        <div class="menu-item">
+          <button class="menu-button" type="button">
+            ⚙️ Setup <span class="menu-caret">&#9662;</span>
+          </button>
+          <div class="menu-dropdown">
+            <button type="button" onclick="openModal('modal-provider')">🌐 AI Provider &amp; Model…</button>
+            <button type="button" onclick="openModal('modal-prompt')">📝 System Prompt…</button>
+            <button type="button" onclick="openModal('modal-welcome')">👋 Welcome Message…</button>
+            <button type="button" onclick="openModal('modal-rag')">📚 Knowledge Base (RAG)…</button>
+          </div>
+        </div>
+        <div class="menu-item">
+          <button class="menu-button" type="button">
+            🖥️ Interface <span class="menu-caret">&#9662;</span>
+          </button>
+          <div class="menu-dropdown">
+            <button type="button" onclick="openModal('modal-interface')">🎨 Mode &amp; Appearance…</button>
+            <button type="button" onclick="openModal('modal-behavior')">🚦 Behavior &amp; Limits…</button>
+          </div>
+        </div>
+        <div class="menu-item">
+          <button class="menu-button" type="button" onclick="openModal('modal-test')">🧪 Test</button>
+        </div>
+        <div class="menu-item">
+          <button class="menu-button" type="button" onclick="openModal('modal-deploy')">💾 Deploy</button>
+        </div>
+        <div class="menu-spacer"></div>
+        <button class="menu-action" type="button" onclick="reloadAgent()">🔄 Apply Changes</button>
+      </div>
+
+      <div class="preview-area">
+        <div class="preview-header">
+          <h2>👁️ Preview Widget</h2>
+          <p>
+            This is how Clippy will appear on your site. Interact directly in
+            the balloon!
+          </p>
         </div>
 
-        <!-- API Configuration -->
-        <h2>⚙️ AI Provider Configuration</h2>
+        <div class="preview-content">
+          <div class="demo-content">
+            <h1>Your Website</h1>
+            <p>This is a sample area that simulates your website's content.</p>
+            <p>
+              Clippy will appear in the bottom right corner and users can
+              interact directly with it through the balloon.
+            </p>
+            <p>
+              The conversation is fluid and natural, perfectly integrated into
+              your design!
+            </p>
+          </div>
 
+          <!-- Clippy will be positioned here by clippyjs -->
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <div class="status-bar-panel status-bar-main" id="statusIndicator">
+          ⏳ Initializing...
+        </div>
+        <div class="status-bar-panel status-bar-mode" id="modeIndicator">
+          Mode: Classic
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Settings Modals ============ -->
+    <div class="settings-overlay" id="settingsOverlay">
+      <div class="settings-modal" id="modal-provider">
+        <div class="settings-modal-titlebar"><span>⚙️ AI Provider & Model</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
         <div
           style="
             background: rgba(255, 255, 255, 0.05);
@@ -925,33 +1441,6 @@
             🔒 The API key is encrypted and saved on the server. It is never stored in the browser.
           </p>
         </div>
-
-        <div class="control-group">
-          <label for="agentSelect">👤 Character</label>
-          <select id="agentSelect">
-            <option value="Clippy">📎 Clippy</option>
-            <option value="Merlin">🧙‍♂️ Merlin</option>
-            <option value="Rover">🐕 Rover</option>
-            <option value="Links">🐱 Links</option>
-            <option value="Genie">🧞‍♂️ Genie</option>
-            <option value="Genius">💡 Genius</option>
-            <option value="F1">🤖 F1</option>
-            <option value="Rocky">🗿 Rocky</option>
-            <option value="Peedy">🐦 Peedy</option>
-            <option value="Bonzi">🐵 Bonzi</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <button
-            class="btn-primary"
-            onclick="reloadAgent()"
-            style="width: 100%"
-          >
-            🔄 Apply Changes
-          </button>
-        </div>
-
         <div class="control-group" style="margin-top: 10px">
           <button
             class="btn-secondary"
@@ -971,10 +1460,111 @@
             "
           ></div>
         </div>
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-primary" onclick="reloadAgent()">🔄 Apply Changes</button>
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-interface">
+        <div class="settings-modal-titlebar"><span>🎨 Interface — Mode & Appearance</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
+        <!-- Interface / UI mode -->
+        <div class="control-group">
+          <label for="uiModeSelect">🎨 Interface</label>
+          <select id="uiModeSelect" onchange="onUiModeChange()">
+            <option value="classic">📎 Classic (retro agent)</option>
+            <option value="modern">💬 Modern (chat bubble)</option>
+          </select>
+        </div>
 
-        <!-- System Prompt Editor -->
-        <h2>📝 System Prompt</h2>
+        <!-- Modern appearance (only shown in modern mode) -->
+        <div class="control-group" id="modernAppearance" style="display: none">
+          <label for="accentColor">🎨 Accent color</label>
+          <input
+            type="color"
+            id="accentColor"
+            value="#4f46e5"
+            style="
+              width: 100%;
+              height: 38px;
+              padding: 2px;
+              border-radius: 4px;
+              cursor: pointer;
+            "
+          />
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-top: 10px;
+              cursor: pointer;
+            "
+          >
+            <input type="checkbox" id="darkMode" /> 🌙 Dark mode
+          </label>
+        </div>
 
+        <!-- Character (only shown in classic mode) -->
+        <div class="control-group" id="agentControlGroup">
+          <label for="agentSelect">👤 Character</label>
+          <select id="agentSelect">
+            <option value="Clippy">📎 Clippy</option>
+            <option value="Merlin">🧙‍♂️ Merlin</option>
+            <option value="Rover">🐕 Rover</option>
+            <option value="Links">🐱 Links</option>
+            <option value="Genie">🧞‍♂️ Genie</option>
+            <option value="Genius">💡 Genius</option>
+            <option value="F1">🤖 F1</option>
+            <option value="Rocky">🗿 Rocky</option>
+            <option value="Peedy">🐦 Peedy</option>
+            <option value="Bonzi">🐵 Bonzi</option>
+          </select>
+        </div>
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-primary" onclick="reloadAgent()">🔄 Apply Changes</button>
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-behavior">
+        <div class="settings-modal-titlebar"><span>🚦 Behavior & Limits</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
+        <!-- Web search (applies only to supported providers) -->
+        <div class="control-group">
+          <label
+            style="display: flex; align-items: center; gap: 8px; cursor: pointer"
+          >
+            <input type="checkbox" id="webSearchEnabled" /> 🔍 Enable web search
+          </label>
+          <p style="font-size: 0.78em; margin-top: 4px; color: #b8b8b8">
+            Only for providers that support it natively (OpenAI, Anthropic,
+            Gemini, xAI, Perplexity). Ignored otherwise.
+          </p>
+        </div>
+
+        <!-- Per-conversation message cap -->
+        <div class="control-group">
+          <label for="maxMessages"
+            >🚦 Max messages per conversation (0 = unlimited)</label
+          >
+          <input
+            type="number"
+            id="maxMessages"
+            min="0"
+            value="0"
+            style="width: 100%; padding: 8px; border-radius: 4px"
+          />
+        </div>
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-prompt">
+        <div class="settings-modal-titlebar"><span>📝 System Prompt</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
         <div class="control-group">
           <label for="systemPromptEditor"
             >Customize the assistant's behavior:</label
@@ -1013,10 +1603,14 @@
             </button>
           </div>
         </div>
-
-        <!-- Welcome Message -->
-        <h2>👋 Welcome Message</h2>
-
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-welcome">
+        <div class="settings-modal-titlebar"><span>👋 Welcome Message</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
         <div class="control-group">
           <label for="welcomeMessageEditor"
             >Message shown in the balloon when the widget loads:</label
@@ -1042,10 +1636,14 @@
             💡 This message appears in the balloon when the widget first loads. Leave empty for default greeting.
           </p>
         </div>
-
-        <!-- RAG Documents -->
-        <h2>📚 RAG - Knowledge Base</h2>
-
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-rag">
+        <div class="settings-modal-titlebar"><span>📚 Knowledge Base (RAG)</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
         <div class="control-group">
           <div
             style="
@@ -1156,10 +1754,15 @@
             <span id="ragStatusText"></span>
           </div>
         </div>
-
-        <!-- Quick Commands -->
-        <h2>🎮 Quick Tests</h2>
-
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-test">
+        <div class="settings-modal-titlebar"><span>🧪 Tests, Animations & Debug</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
+          <div class="modal-subhead">🎮 Quick Tests</div>
         <div class="control-group">
           <button class="btn-secondary" onclick="testGreeting()">
             👋 Greet
@@ -1172,19 +1775,13 @@
           </button>
           <button class="btn-danger" onclick="stopAgent()">⏹️ Stop</button>
         </div>
-
-        <!-- Manual Animations -->
-        <h2>🎭 Test Animations</h2>
-
+          <div class="modal-subhead">🎭 Animations</div>
         <div class="control-group">
           <div class="animation-grid" id="animationGrid">
             <!-- Populated by JS -->
           </div>
         </div>
-
-        <!-- Debug -->
-        <h2>🔧 Debug</h2>
-
+          <div class="modal-subhead">🔧 Debug</div>
         <div class="control-group">
           <button class="btn-secondary" onclick="showAvailableAnimations()">
             📋 Animation List
@@ -1196,10 +1793,14 @@
             🗑️ Reset Chat
           </button>
         </div>
-
-        <!-- Embed Code -->
-        <h2>💾 Generate Widget for Your Site</h2>
-
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-deploy">
+        <div class="settings-modal-titlebar"><span>💾 Save & Generate Embed</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
         <div class="embed-section">
           <p style="font-size: 0.85em; margin-bottom: 10px">
             <strong>1. Save configuration:</strong>
@@ -1259,33 +1860,9 @@ Loading...
             </button>
           </div>
         </div>
-      </div>
-
-      <!-- Preview Area -->
-      <div class="preview-area">
-        <div class="preview-header">
-          <h2>👁️ Preview Widget</h2>
-          <p>
-            This is how Clippy will appear on your site. Interact directly in
-            the balloon!
-          </p>
         </div>
-
-        <div class="preview-content">
-          <div class="demo-content">
-            <h1>Your Website</h1>
-            <p>This is a sample area that simulates your website's content.</p>
-            <p>
-              Clippy will appear in the bottom right corner and users can
-              interact directly with it through the balloon.
-            </p>
-            <p>
-              The conversation is fluid and natural, perfectly integrated into
-              your design!
-            </p>
-          </div>
-
-          <!-- Clippy will be positioned here by clippyjs -->
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
         </div>
       </div>
     </div>
@@ -2590,6 +3167,18 @@ Examples:
         win95Alert("Code copied to clipboard!", "success");
       }
 
+      // Toggle interface-specific controls based on the selected UI mode
+      function onUiModeChange() {
+        const mode = document.getElementById("uiModeSelect").value;
+        const isModern = mode === "modern";
+        const modernBlock = document.getElementById("modernAppearance");
+        const agentBlock = document.getElementById("agentControlGroup");
+        if (modernBlock) modernBlock.style.display = isModern ? "block" : "none";
+        if (agentBlock) agentBlock.style.display = isModern ? "none" : "block";
+        const modeInd = document.getElementById("modeIndicator");
+        if (modeInd) modeInd.textContent = "Mode: " + (isModern ? "Modern" : "Classic");
+      }
+
       async function saveConfigAndGenerateEmbed() {
         // Check authentication
         const authToken = localStorage.getItem("clippy_auth_token");
@@ -2653,6 +3242,7 @@ Examples:
           console.log("🔍 Method:", method);
 
           // Prepare request body
+          const uiMode = document.getElementById("uiModeSelect").value;
           const requestBody = {
             name: configName,
             description: `${agentName} con ${provider}/${model}`,
@@ -2664,6 +3254,13 @@ Examples:
             rag_content: ragContent || null,
             temperature: 0.8,
             max_tokens: 500,
+            ui_mode: uiMode,
+            accent_color: document.getElementById("accentColor").value,
+            dark_mode: document.getElementById("darkMode").checked,
+            web_search_enabled:
+              document.getElementById("webSearchEnabled").checked,
+            max_messages_per_conversation:
+              parseInt(document.getElementById("maxMessages").value, 10) || 0,
           };
 
           // Only include API key if it's provided (for updates, it's optional)
@@ -2818,6 +3415,18 @@ Examples:
             config.agent || "Clippy";
           document.getElementById("providerSelect").value = config.provider;
 
+          // Interface / UI mode + web search + message cap
+          document.getElementById("uiModeSelect").value =
+            config.ui_mode || "classic";
+          document.getElementById("accentColor").value =
+            config.accent_color || "#4f46e5";
+          document.getElementById("darkMode").checked = !!config.dark_mode;
+          document.getElementById("webSearchEnabled").checked =
+            !!config.web_search_enabled;
+          document.getElementById("maxMessages").value =
+            config.max_messages_per_conversation || 0;
+          onUiModeChange();
+
           // Populate models for this provider WITHOUT calling onProviderChange (which clears API key)
           populateModels(config.provider);
 
@@ -2906,6 +3515,7 @@ Examples:
           console.log("🔍 NORMAL MODE detected");
           // Normal mode - initialize with defaults
           initializeModelPicker();
+          onUiModeChange();
         }
 
         if (typeof clippy !== "undefined") {
@@ -2917,57 +3527,85 @@ Examples:
         } else {
           updateStatus("Errore: Clippy non caricato", "error");
         }
-
-        // Initialize sidebar resize functionality
-        initSidebarResize();
       });
 
-      // Sidebar Resize Functionality
-      function initSidebarResize() {
-        const resizeHandle = document.getElementById("resizeHandle");
-        const controlPanel = document.getElementById("controlPanel");
-        let isResizing = false;
-        let startX = 0;
-        let startWidth = 0;
-
-        resizeHandle.addEventListener("mousedown", function (e) {
-          isResizing = true;
-          startX = e.clientX;
-          startWidth = controlPanel.offsetWidth;
-          document.body.style.cursor = "ew-resize";
-          document.body.style.userSelect = "none";
-          e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", function (e) {
-          if (!isResizing) return;
-
-          const deltaX = e.clientX - startX;
-          const newWidth = startWidth + deltaX;
-
-          // Apply min and max constraints
-          if (newWidth >= 200 && newWidth <= 600) {
-            controlPanel.style.width = newWidth + "px";
-          }
-        });
-
-        document.addEventListener("mouseup", function () {
-          if (isResizing) {
-            isResizing = false;
-            document.body.style.cursor = "";
-            document.body.style.userSelect = "";
-          }
-        });
-
-        // Also handle when mouse leaves the window
-        document.addEventListener("mouseleave", function () {
-          if (isResizing) {
-            isResizing = false;
-            document.body.style.cursor = "";
-            document.body.style.userSelect = "";
-          }
-        });
+      // ============ Menu bar & settings modals ============
+      function openModal(id) {
+        closeMenus();
+        const overlay = document.getElementById("settingsOverlay");
+        if (!overlay) return;
+        overlay
+          .querySelectorAll(".settings-modal")
+          .forEach((m) => m.classList.remove("show"));
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add("show");
+        overlay.classList.add("show");
       }
+
+      function closeSettings() {
+        const overlay = document.getElementById("settingsOverlay");
+        if (!overlay) return;
+        overlay.classList.remove("show");
+        overlay
+          .querySelectorAll(".settings-modal")
+          .forEach((m) => m.classList.remove("show"));
+      }
+
+      function closeMenus() {
+        document
+          .querySelectorAll(".menu-item.open")
+          .forEach((i) => i.classList.remove("open"));
+      }
+
+      // Wire up the Windows-style menu bar
+      (function initMenuBar() {
+        function setup() {
+          const buttons = document.querySelectorAll(".menu-bar .menu-button");
+          buttons.forEach(function (btn) {
+            const item = btn.parentElement;
+            const hasDropdown = !!item.querySelector(".menu-dropdown");
+            btn.addEventListener("click", function (e) {
+              e.stopPropagation();
+              if (!hasDropdown) return; // direct-action menu: inline onclick handles it
+              const wasOpen = item.classList.contains("open");
+              closeMenus();
+              if (!wasOpen) item.classList.add("open");
+            });
+            // Word-like: once a menu is open, hovering a dropdown menu opens it
+            btn.addEventListener("mouseenter", function () {
+              if (hasDropdown && document.querySelector(".menu-item.open")) {
+                closeMenus();
+                item.classList.add("open");
+              }
+            });
+          });
+
+          // Click anywhere else closes any open menu
+          document.addEventListener("click", closeMenus);
+
+          // Backdrop click closes the settings overlay
+          const overlay = document.getElementById("settingsOverlay");
+          if (overlay) {
+            overlay.addEventListener("mousedown", function (e) {
+              if (e.target === overlay) closeSettings();
+            });
+          }
+
+          // Escape closes menus + settings
+          document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") {
+              closeMenus();
+              closeSettings();
+            }
+          });
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setup);
+        } else {
+          setup();
+        }
+      })();
     </script>
   </body>
 </html>

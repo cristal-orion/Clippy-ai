@@ -48,6 +48,13 @@ class ClippyConfig(Base):
     temperature = Column(Float, default=0.8)
     max_tokens = Column(Integer, default=500)
 
+    # Interface / UI mode
+    ui_mode = Column(String(20), default="classic")        # "classic" | "modern"
+    accent_color = Column(String(20), default="#4f46e5")
+    dark_mode = Column(Boolean, default=False)
+    web_search_enabled = Column(Boolean, default=False)
+    max_messages_per_conversation = Column(Integer, default=0)  # 0 = unlimited
+
     # Security
     allowed_domains = Column(Text, nullable=True)  # JSON array of allowed domains
 
