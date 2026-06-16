@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any, Union
 import os
 import io
+import re
 import base64
 import json
 import uuid
@@ -92,7 +93,9 @@ WEB_SEARCH_INSTRUCTION = (
     "events, dates, prices, laws, official codes (e.g. ATECO/VAT), or any fact "
     "you are not fully certain about, search the web and base your answer on the "
     "results, citing the sources. Do not rely on memory for facts that may be "
-    "outdated or that you are unsure about."
+    "outdated or that you are unsure about. IMPORTANT: never show your search "
+    "queries, tool calls, or any code (e.g. 'tool_code', 'print(google_search...)') "
+    "in your reply — output only the final answer for the user."
 )
 
 # ============ Helper Functions ============
@@ -169,6 +172,35 @@ def process_message_content(content: Union[str, list]):
     if len(processed) == 1 and processed[0].get("type") == "text":
         return processed[0]["text"]
     return processed
+
+
+def strip_search_tool_artifacts(text):
+    """Remove Gemini's leaked 'tool_code' / google_search.search blocks.
+
+    When web-search grounding is active, Gemini sometimes verbalizes the search
+    as code (e.g. ```tool_code\\nprint(google_search.search(queries=[...]))```)
+    inside the visible answer. Strip those artifacts while leaving normal text
+    and legitimate code blocks intact.
+    """
+    if not text or not isinstance(text, str):
+        return text
+    # Fenced blocks labeled tool_code, or any fenced block calling google_search
+    text = re.sub(r"```tool_code\b.*?```", "", text, flags=re.S | re.I)
+    text = re.sub(
+        r"```[a-zA-Z_]*\s*\n?[^`]*?google_search\.search[^`]*?```",
+        "", text, flags=re.S | re.I,
+    )
+    # Standalone print(google_search.search(...)) / default_api.*search(...)
+    text = re.sub(
+        r"print\(\s*(?:google_search|default_api)\.[a-zA-Z_]*search\(.*?\)\s*\)",
+        "", text, flags=re.S | re.I,
+    )
+    # Leftover lone 'tool_code' markers, empty fences, excess blank lines
+    text = re.sub(r"^[ \t]*tool_code[ \t]*$", "", text, flags=re.M | re.I)
+    text = re.sub(r"```\s*```", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
 
 def check_rate_limit(client_ip: str) -> bool:
     """Simple in-memory rate limiting"""
@@ -601,7 +633,7 @@ async def preview_chat(
             "choices": [{
                 "message": {
                     "role": "assistant",
-                    "content": response.choices[0].message.content
+                    "content": strip_search_tool_artifacts(response.choices[0].message.content)
                 }
             }],
             "usage": response.usage
@@ -710,7 +742,7 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
             **extra_kwargs
         )
 
-        content = response.choices[0].message.content
+        content = strip_search_tool_artifacts(response.choices[0].message.content)
 
         return {
             "choices": [{
