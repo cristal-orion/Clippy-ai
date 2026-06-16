@@ -83,6 +83,18 @@ RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 # The toggle is silently ignored for any provider not in this set.
 WEB_SEARCH_PROVIDERS = {"openai", "anthropic", "gemini", "vertex_ai", "xai", "perplexity"}
 
+# Nudge appended to the system prompt when web search is active. Some providers
+# (notably Gemini) expose search as a *tool the model chooses whether to call*,
+# so without this it may answer niche/current questions from memory and get them
+# wrong. This pushes it to actually search when it isn't certain.
+WEB_SEARCH_INSTRUCTION = (
+    "\n\nYou have access to web search. Before answering questions about current "
+    "events, dates, prices, laws, official codes (e.g. ATECO/VAT), or any fact "
+    "you are not fully certain about, search the web and base your answer on the "
+    "results, citing the sources. Do not rely on memory for facts that may be "
+    "outdated or that you are unsure about."
+)
+
 # ============ Helper Functions ============
 
 def encrypt_api_key(api_key: str) -> str:
@@ -553,6 +565,12 @@ async def preview_chat(
             detail="provider, model, and api_key are required"
         )
 
+    # Web search is only honored for providers that support it; when active,
+    # nudge the model to actually search rather than answer from memory.
+    web_search_active = web_search and provider in WEB_SEARCH_PROVIDERS
+    if web_search_active:
+        system_prompt = (system_prompt or "") + WEB_SEARCH_INSTRUCTION
+
     # Build messages: optional system prompt + normalized history
     messages = []
     if system_prompt:
@@ -568,7 +586,7 @@ async def preview_chat(
         os.environ[f"{provider.upper()}_API_KEY"] = api_key
 
         extra_kwargs = {}
-        if web_search and provider in WEB_SEARCH_PROVIDERS:
+        if web_search_active:
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
 
         response = await acompletion(
@@ -651,6 +669,12 @@ async def widget_chat(
     if config.rag_content:
         system_prompt += f"\n\nKNOWLEDGE BASE:\n{config.rag_content}\n\nUse this information to answer questions."
 
+    # Native web search — only for providers whose APIs support it.
+    # Unsupported providers silently ignore the toggle rather than erroring.
+    web_search_active = bool(config.web_search_enabled) and config.provider in WEB_SEARCH_PROVIDERS
+    if web_search_active:
+        system_prompt += WEB_SEARCH_INSTRUCTION
+
     # Add animation instructions — classic (ClippyJS) mode only.
     # In modern mode this suffix would leak as literal text in the chat bubble.
     if (config.ui_mode or "classic") == "classic":
@@ -674,10 +698,8 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
         # Set API key in environment
         os.environ[f"{config.provider.upper()}_API_KEY"] = api_key
 
-        # Native web search — only for providers whose APIs support it.
-        # Unsupported providers silently ignore the toggle rather than erroring.
         extra_kwargs = {}
-        if config.web_search_enabled and config.provider in WEB_SEARCH_PROVIDERS:
+        if web_search_active:
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
 
         response = await acompletion(
