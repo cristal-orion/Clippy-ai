@@ -3,7 +3,7 @@ Pydantic schemas for request/response validation
 """
 
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 from datetime import datetime
 
 # ============ User Schemas ============
@@ -123,9 +123,17 @@ class ClippyConfigWithEmbed(ClippyConfigResponse):
 # ============ Chat Schemas ============
 
 class ChatMessage(BaseModel):
-    """Schema for a chat message"""
+    """Schema for a chat message.
+
+    `content` is either a plain string (text-only turn) or a list of content
+    blocks (multimodal turn with attached images/PDFs), following the OpenAI /
+    LiteLLM content-array format, e.g.:
+        [{"type": "text", "text": "..."},
+         {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}},
+         {"type": "file", "file": {"filename": "doc.pdf", "file_data": "data:application/pdf;base64,..."}}]
+    """
     role: str
-    content: str
+    content: Union[str, List[Dict[str, Any]]]
 
 class WidgetChatRequest(BaseModel):
     """Schema for widget chat request (uses config_id)"""

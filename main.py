@@ -9,8 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import os
+import io
+import base64
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -94,6 +96,67 @@ def decrypt_api_key(encrypted_key: str) -> str:
 def format_model_name(provider: str, model: str) -> str:
     """Format model name for LiteLLM"""
     return f"{provider}/{model}"
+
+# Upload limits (defensive bounds on the base64 payloads sent by the widget).
+MAX_PDF_TEXT_CHARS = int(os.getenv("MAX_PDF_TEXT_CHARS", "20000"))
+
+
+def _extract_pdf_text(data_url: str) -> str:
+    """Extract plain text from a base64 data URL holding a PDF.
+
+    PDFs are turned into text server-side (provider-agnostic) instead of being
+    forwarded natively, so any model can "read" them. Returns "" on failure.
+    """
+    try:
+        b64 = data_url.split(",", 1)[1] if "," in data_url else data_url
+        raw = base64.b64decode(b64)
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(raw))
+        parts = [(page.extract_text() or "") for page in reader.pages]
+        return "\n".join(parts).strip()[:MAX_PDF_TEXT_CHARS]
+    except Exception as e:
+        print(f"PDF extraction failed: {e}")
+        return ""
+
+
+def process_message_content(content: Union[str, list]):
+    """Normalize a chat message's content for LiteLLM.
+
+    Plain strings pass through unchanged. For multimodal arrays, image blocks
+    are forwarded as-is (handled by vision models), while PDF "file" blocks are
+    converted to extracted-text blocks so they work across every provider.
+    """
+    if not isinstance(content, list):
+        return content
+
+    processed = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        btype = block.get("type")
+        if btype == "file":
+            file_obj = block.get("file") or {}
+            filename = file_obj.get("filename", "document.pdf")
+            text = _extract_pdf_text(file_obj.get("file_data", ""))
+            if text:
+                processed.append({
+                    "type": "text",
+                    "text": f"[Attached file: {filename}]\n{text}",
+                })
+            else:
+                processed.append({
+                    "type": "text",
+                    "text": f"[Attached file: {filename} — could not be read]",
+                })
+        else:
+            # text and image_url blocks pass through to the model
+            processed.append(block)
+
+    # If everything collapsed to a single text block, send a plain string.
+    if len(processed) == 1 and processed[0].get("type") == "text":
+        return processed[0]["text"]
+    return processed
 
 def check_rate_limit(client_ip: str) -> bool:
     """Simple in-memory rate limiting"""
@@ -460,6 +523,78 @@ async def test_connection(
         )
 
 
+@app.post("/api/preview/chat")
+async def preview_chat(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Chat endpoint for the editor's live preview with an ad-hoc (not yet saved)
+    configuration. Authenticated; the API key is used per-request and never
+    stored. Routing through the backend (LiteLLM) — rather than calling the
+    provider directly from the browser — means multimodal attachments work
+    consistently: PDFs are extracted to text and images are forwarded in the
+    correct per-provider format, avoiding errors like "Invalid content part
+    type: file" and browser CORS issues.
+    """
+    body = await request.json()
+    provider = body.get("provider")
+    model = body.get("model")
+    api_key = body.get("api_key")
+    messages_in = body.get("messages", [])
+    system_prompt = body.get("system_prompt") or ""
+    temperature = body.get("temperature", 0.8)
+    max_tokens = body.get("max_tokens", 600)
+    web_search = bool(body.get("web_search_enabled"))
+
+    if not provider or not model or not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="provider, model, and api_key are required"
+        )
+
+    # Build messages: optional system prompt + normalized history
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    for m in messages_in:
+        messages.append({
+            "role": m.get("role", "user"),
+            "content": process_message_content(m.get("content")),
+        })
+
+    try:
+        model_name = format_model_name(provider, model)
+        os.environ[f"{provider.upper()}_API_KEY"] = api_key
+
+        extra_kwargs = {}
+        if web_search and provider in WEB_SEARCH_PROVIDERS:
+            extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
+
+        response = await acompletion(
+            model=model_name,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **extra_kwargs
+        )
+
+        return {
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": response.choices[0].message.content
+                }
+            }],
+            "usage": response.usage
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI Error: {str(e)}"
+        )
+
+
 @app.post("/api/widget/chat")
 async def widget_chat(
     request: WidgetChatRequest,
@@ -525,10 +660,11 @@ CRITICAL FORMAT: Always end with "[ANIMATION: AnimationName]"
 Choose animations based on context: Wave (greeting), Explain (help), Thinking (analyzing), Congratulate (success), Alert (warning).
 """
 
-    # Prepare messages
+    # Prepare messages (multimodal content is normalized: PDFs → extracted text,
+    # images forwarded as-is for vision-capable models)
     messages = [
         {"role": "system", "content": system_prompt},
-        *[{"role": m.role, "content": m.content} for m in request.messages]
+        *[{"role": m.role, "content": process_message_content(m.content)} for m in request.messages]
     ]
 
     try:

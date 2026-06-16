@@ -346,6 +346,28 @@
           padding-top: 10px;
           border-top: 1px solid rgba(0,0,0,0.2);
         }
+        #clippy-attachments {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          margin-top: 8px;
+        }
+        #clippy-attachments:empty { display: none; }
+        .clippy-attach-chip {
+          display: inline-flex; align-items: center; gap: 4px;
+          background: rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.25);
+          border-radius: 10px; padding: 2px 4px 2px 7px; font-size: 11px; max-width: 160px;
+        }
+        .clippy-attach-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .clippy-attach-chip button {
+          background: transparent; border: none; cursor: pointer; font-size: 13px;
+          line-height: 1; padding: 0 2px; color: #a00000; font-weight: bold;
+        }
+        #clippy-attach {
+          padding: 0 10px; background: transparent; border: 1px solid #999;
+          border-radius: 4px; cursor: pointer; font-size: 16px; flex-shrink: 0;
+        }
+        #clippy-attach:hover { background: rgba(0,0,0,0.06); }
         #clippy-input {
           flex: 1;
           padding: 8px;
@@ -372,7 +394,10 @@
       </style>
       <button id="clippy-close" onclick="document.getElementById('clippy-balloon').style.display='none'">×</button>
       <div id="clippy-message">Ciao! 👋</div>
+      <div id="clippy-attachments"></div>
       <div id="clippy-input-wrapper">
+        <input type="file" id="clippy-file" accept="image/*,application/pdf" multiple style="display:none" />
+        <button id="clippy-attach" title="Allega immagine o PDF">📎</button>
         <input type="text" id="clippy-input" placeholder="Scrivi un messaggio..." />
         <button id="clippy-send">Invia</button>
       </div>
@@ -389,6 +414,20 @@
         e.preventDefault();
         sendMessage();
       }
+    });
+
+    // File attachments
+    const fileInput = document.getElementById("clippy-file");
+    document
+      .getElementById("clippy-attach")
+      .addEventListener("click", function () {
+        fileInput.click();
+      });
+    fileInput.addEventListener("change", function () {
+      const accepted = validateAttachments(Array.from(fileInput.files));
+      classicAttachments = classicAttachments.concat(accepted);
+      renderAttachChips("clippy-attachments", classicAttachments);
+      fileInput.value = "";
     });
   }
 
@@ -423,7 +462,13 @@
     const sendBtn = document.getElementById("clippy-send");
     const message = input.value.trim();
 
-    if (!message || isProcessing) return;
+    if ((!message && classicAttachments.length === 0) || isProcessing) return;
+
+    // Capture + clear attachments for this turn
+    const sentAttachments = classicAttachments.slice();
+    const userContent = await buildUserContent(message, sentAttachments);
+    classicAttachments = [];
+    renderAttachChips("clippy-attachments", classicAttachments);
 
     input.value = "";
     input.disabled = true;
@@ -431,7 +476,7 @@
     isProcessing = true;
 
     // Add to history
-    conversationHistory.push({ role: "user", content: message });
+    conversationHistory.push({ role: "user", content: userContent });
 
     // Show thinking animation
     if (clippyAgent) {
@@ -536,6 +581,93 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  // ============ File attachments (images / PDF) ============
+  // Shared by the classic balloon and the modern panel. Attachments are sent to
+  // /api/widget/chat as an OpenAI/LiteLLM content array; the backend turns PDFs
+  // into text and forwards images to vision-capable models.
+
+  const MAX_ATTACH_BYTES = 8 * 1024 * 1024; // 8 MB per file
+  let classicAttachments = [];
+  let modernAttachments = [];
+
+  function readFileAsDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      const r = new FileReader();
+      r.onload = function () {
+        resolve(r.result);
+      };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Keep only supported, reasonably-sized files
+  function validateAttachments(fileList) {
+    const ok = [];
+    for (let i = 0; i < fileList.length; i++) {
+      const f = fileList[i];
+      const isImg = f.type.indexOf("image/") === 0;
+      const isPdf = f.type === "application/pdf";
+      if (!isImg && !isPdf) {
+        alert("Only images and PDF files are supported: " + f.name);
+        continue;
+      }
+      if (f.size > MAX_ATTACH_BYTES) {
+        alert("File too large (max 8 MB): " + f.name);
+        continue;
+      }
+      ok.push(f);
+    }
+    return ok;
+  }
+
+  // Build a message's content: plain string when there are no files, otherwise
+  // a content array with text + image_url / file blocks.
+  async function buildUserContent(text, files) {
+    if (!files || files.length === 0) return text;
+    const blocks = [];
+    if (text) blocks.push({ type: "text", text: text });
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const dataUrl = await readFileAsDataURL(f);
+      if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image_url", image_url: { url: dataUrl } });
+      } else if (f.type === "application/pdf") {
+        blocks.push({
+          type: "file",
+          file: { filename: f.name, file_data: dataUrl },
+        });
+      }
+    }
+    return blocks;
+  }
+
+  // Render attachment chips for a list into a container
+  function renderAttachChips(containerId, list) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    list.forEach(function (f, i) {
+      const chip = document.createElement("span");
+      chip.className = "clippy-attach-chip";
+      const name = document.createElement("span");
+      name.className = "clippy-attach-name";
+      name.textContent =
+        (f.type.indexOf("image/") === 0 ? "🖼️ " : "📄 ") + f.name;
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.textContent = "×";
+      rm.title = "Remove";
+      rm.addEventListener("click", function () {
+        list.splice(i, 1);
+        renderAttachChips(containerId, list);
+      });
+      chip.appendChild(name);
+      chip.appendChild(rm);
+      wrap.appendChild(chip);
+    });
   }
 
   // ============ Modern UI mode ============
@@ -645,11 +777,34 @@
         font-size: 14px; outline: none; background: var(--cm-input-bg); color: var(--cm-text);
       }
       .cm-input-row input:focus { border-color: var(--cm-accent); }
-      .cm-input-row button {
+      .cm-input-row button.cm-send {
         width: 42px; border: none; border-radius: 10px; background: var(--cm-accent);
         color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0;
       }
       .cm-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .cm-attach-btn {
+        width: 40px; border: none; border-radius: 10px; background: transparent;
+        color: var(--cm-muted); font-size: 20px; cursor: pointer; flex-shrink: 0;
+      }
+      .cm-attach-btn:hover { background: rgba(127,127,127,0.15); }
+      .cm-attach-row {
+        display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px;
+      }
+      .cm-attach-row:empty { display: none; }
+      #clippy-modern-root .clippy-attach-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: rgba(127,127,127,0.18); border: 1px solid var(--cm-border);
+        border-radius: 10px; padding: 2px 4px 2px 7px; font-size: 11px;
+        max-width: 160px; color: var(--cm-text);
+      }
+      #clippy-modern-root .clippy-attach-name {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      #clippy-modern-root .clippy-attach-chip button {
+        background: transparent; border: none; cursor: pointer; font-size: 13px;
+        line-height: 1; padding: 0 2px; color: var(--cm-text); font-weight: bold;
+      }
+      .cm-bubble .cm-atts { font-size: 12px; opacity: 0.85; margin-top: 4px; }
     `;
     document.head.appendChild(style);
   }
@@ -668,9 +823,12 @@
           <button class="cm-close" id="clippy-modern-close" aria-label="Chiudi">&times;</button>
         </div>
         <div class="cm-messages" id="clippy-modern-messages"></div>
+        <div class="cm-attach-row" id="clippy-modern-attachments"></div>
         <div class="cm-input-row">
+          <input type="file" id="clippy-modern-file" accept="image/*,application/pdf" multiple style="display:none" />
+          <button class="cm-attach-btn" id="clippy-modern-attach" type="button" aria-label="Allega" title="Allega immagine o PDF">&#128206;</button>
           <input type="text" id="clippy-modern-input" placeholder="Scrivi un messaggio..." autocomplete="off" />
-          <button id="clippy-modern-send" aria-label="Invia">&#10148;</button>
+          <button class="cm-send" id="clippy-modern-send" aria-label="Invia">&#10148;</button>
         </div>
       </div>
       <button id="clippy-modern-fab" aria-label="Apri chat">&#128172;</button>
@@ -695,6 +853,20 @@
         }
       });
 
+    // File attachments
+    const mpFile = document.getElementById("clippy-modern-file");
+    document
+      .getElementById("clippy-modern-attach")
+      .addEventListener("click", function () {
+        mpFile.click();
+      });
+    mpFile.addEventListener("change", function () {
+      const accepted = validateAttachments(Array.from(mpFile.files));
+      modernAttachments = modernAttachments.concat(accepted);
+      renderAttachChips("clippy-modern-attachments", modernAttachments);
+      mpFile.value = "";
+    });
+
     // Seed the first assistant bubble with the welcome message
     const greeting = config.welcome_message
       ? config.welcome_message
@@ -714,14 +886,25 @@
     }
   }
 
-  // Append a styled message bubble (assistant rendered via formatMarkdown)
-  function appendBubble(role, text) {
+  // Append a styled message bubble (assistant rendered via formatMarkdown).
+  // For user bubbles, optional attachments are listed under the text.
+  function appendBubble(role, text, attachments) {
     const list = document.getElementById("clippy-modern-messages");
     if (!list) return null;
     const bubble = document.createElement("div");
     bubble.className = "cm-bubble " + (role === "user" ? "cm-user" : "cm-assistant");
     if (role === "user") {
-      bubble.textContent = text;
+      bubble.textContent = text || "";
+      if (attachments && attachments.length) {
+        const att = document.createElement("div");
+        att.className = "cm-atts";
+        att.textContent = attachments
+          .map(function (f) {
+            return (f.type.indexOf("image/") === 0 ? "🖼️ " : "📄 ") + f.name;
+          })
+          .join("  ");
+        bubble.appendChild(att);
+      }
     } else {
       bubble.innerHTML = formatMarkdown(text);
     }
@@ -771,15 +954,21 @@
     const sendBtn = document.getElementById("clippy-modern-send");
     const message = input.value.trim();
 
-    if (!message || isProcessing) return;
+    if ((!message && modernAttachments.length === 0) || isProcessing) return;
+
+    // Capture + clear attachments for this turn
+    const sentAttachments = modernAttachments.slice();
+    const userContent = await buildUserContent(message, sentAttachments);
+    modernAttachments = [];
+    renderAttachChips("clippy-modern-attachments", modernAttachments);
 
     input.value = "";
     input.disabled = true;
     sendBtn.disabled = true;
     isProcessing = true;
 
-    conversationHistory.push({ role: "user", content: message });
-    appendBubble("user", message);
+    conversationHistory.push({ role: "user", content: userContent });
+    appendBubble("user", message, sentAttachments);
 
     const typing = showModernTyping();
 

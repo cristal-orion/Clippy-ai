@@ -123,6 +123,15 @@
         font-family: "Tahoma", "MS Sans Serif", Arial;
       }
 
+      /* Checkboxes/radios must not stretch to full width like text inputs:
+         a 100%-wide checkbox pushes its label text far to the right. */
+      .control-group input[type="checkbox"],
+      .control-group input[type="radio"] {
+        width: auto;
+        margin: 0;
+        flex: 0 0 auto;
+      }
+
       .control-group button {
         padding: 4px 12px;
         border: 2px solid;
@@ -404,6 +413,48 @@
         background: #808080;
         color: #c0c0c0;
         cursor: not-allowed;
+      }
+
+      /* Attachment chips + attach button (shared by classic balloon) */
+      .attach-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 6px;
+      }
+      .attach-row:empty {
+        display: none;
+      }
+      .attach-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.25);
+        border-radius: 10px;
+        padding: 2px 4px 2px 7px;
+        font-size: 11px;
+        max-width: 180px;
+      }
+      .attach-chip .attach-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .attach-chip button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        padding: 0 2px;
+        color: #a00000;
+        font-weight: bold;
+      }
+      .attach-btn {
+        flex: 0 0 auto !important;
+        padding: 4px 8px !important;
+        font-size: 14px !important;
       }
 
       .typing-indicator {
@@ -1368,6 +1419,7 @@
             <option value="groq">Groq (Default - Fast & Free)</option>
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic (Claude)</option>
+            <option value="gemini">Google Gemini (API Key)</option>
             <option value="azure">Azure OpenAI</option>
             <option value="vertex_ai">Google Vertex AI</option>
             <option value="ollama">Ollama (Local)</option>
@@ -1391,14 +1443,22 @@
 
         <div class="control-group">
           <label for="modelSelect">🤖 AI Model</label>
-          <select id="modelSelect">
+          <select id="modelSelect" onchange="onModelSelectChange()">
             <!-- Populated dynamically based on provider -->
           </select>
+          <input
+            type="text"
+            id="customModel"
+            placeholder="…or type a custom model ID (e.g. gemini-2.5-flash)"
+            oninput="onCustomModelChange()"
+            style="margin-top: 6px"
+          />
           <p
             style="font-size: 0.75em; opacity: 0.7; margin-top: 5px"
             id="modelInfo"
           >
-            Select the model from the chosen provider
+            Select the model from the chosen provider, or type any model code
+            supported by the provider in the field above (it overrides the list).
           </p>
         </div>
 
@@ -1485,6 +1545,7 @@
             type="color"
             id="accentColor"
             value="#4f46e5"
+            oninput="onModernAppearanceChange()"
             style="
               width: 100%;
               height: 38px;
@@ -1502,7 +1563,12 @@
               cursor: pointer;
             "
           >
-            <input type="checkbox" id="darkMode" /> 🌙 Dark mode
+            <input
+              type="checkbox"
+              id="darkMode"
+              onchange="onModernAppearanceChange()"
+            />
+            <span>🌙 Dark mode</span>
           </label>
         </div>
 
@@ -1536,9 +1602,10 @@
           <label
             style="display: flex; align-items: center; gap: 8px; cursor: pointer"
           >
-            <input type="checkbox" id="webSearchEnabled" /> 🔍 Enable web search
+            <input type="checkbox" id="webSearchEnabled" />
+            <span>🔍 Enable web search</span>
           </label>
-          <p style="font-size: 0.78em; margin-top: 4px; color: #b8b8b8">
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
             Only for providers that support it natively (OpenAI, Anthropic,
             Gemini, xAI, Perplexity). Ignored otherwise.
           </p>
@@ -1874,7 +1941,24 @@ Loading...
       </button>
       <div id="balloonMessage">Hi! I'm Clippy! 👋</div>
       <div class="chat-input-container">
+        <div id="clippyAttachments" class="attach-row"></div>
         <div class="chat-input-wrapper">
+          <input
+            type="file"
+            id="clippyFileInput"
+            accept="image/*,application/pdf"
+            multiple
+            style="display: none"
+          />
+          <button
+            type="button"
+            id="clippyAttachBtn"
+            class="attach-btn"
+            title="Attach an image or PDF"
+            onclick="document.getElementById('clippyFileInput').click()"
+          >
+            📎
+          </button>
           <input
             type="text"
             id="clippyInput"
@@ -1971,18 +2055,26 @@ Loading...
           { value: "gpt-4", label: "GPT-4" },
           { value: "gpt-35-turbo", label: "GPT-3.5 Turbo" },
         ],
+        gemini: [
+          { value: "gemini-2.5-pro", label: "🆕 Gemini 2.5 Pro (Most capable)" },
+          { value: "gemini-2.5-flash", label: "🆕 Gemini 2.5 Flash (Recommended)" },
+          {
+            value: "gemini-2.5-flash-lite",
+            label: "🆕 Gemini 2.5 Flash-Lite (Fastest)",
+          },
+          { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+          { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash-Lite" },
+          { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (legacy)" },
+          { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (legacy)" },
+        ],
         vertex_ai: [
-          {
-            value: "gemini-2.0-flash-exp",
-            label: "🆕 Gemini 2.0 Flash (Experimental)",
-          },
-          { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-          { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Fast)" },
-          {
-            value: "gemini-1.5-flash-8b",
-            label: "Gemini 1.5 Flash 8B (Fastest)",
-          },
-          { value: "gemini-pro", label: "Gemini Pro" },
+          { value: "gemini-2.5-pro", label: "🆕 Gemini 2.5 Pro" },
+          { value: "gemini-2.5-flash", label: "🆕 Gemini 2.5 Flash" },
+          { value: "gemini-2.5-flash-lite", label: "🆕 Gemini 2.5 Flash-Lite" },
+          { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+          { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash-Lite" },
+          { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro (legacy)" },
+          { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (legacy)" },
         ],
         ollama: [
           { value: "llama3.2", label: "Llama 3.2 (Latest)" },
@@ -2106,8 +2198,10 @@ Loading...
         openai: "OpenAI - Requires paid API key (pay-as-you-go)",
         anthropic:
           "Anthropic Claude - Advanced models for complex conversations",
+        gemini:
+          "Google Gemini (AI Studio) - simple API key, vision-capable. Get one at aistudio.google.com",
         azure: "Azure OpenAI - Enterprise deployment of OpenAI models",
-        vertex_ai: "Google Vertex AI - Gemini and other Google models",
+        vertex_ai: "Google Vertex AI - Gemini via GCP service account (not a plain API key)",
         ollama: "Ollama - Run models locally on your computer (free!)",
         huggingface: "HuggingFace - Access to thousands of open source models",
         together_ai: "Together AI - Fast inference for open source models",
@@ -2351,6 +2445,10 @@ Loading...
         // Populate models for new provider
         populateModels(currentProvider);
 
+        // A custom model id is provider-specific; clear it on provider change
+        const customModelEl = document.getElementById("customModel");
+        if (customModelEl) customModelEl.value = "";
+
         // Clear API key field (different provider = different key)
         document.getElementById("apiKey").value = "";
         currentApiKey = "";
@@ -2392,6 +2490,7 @@ Loading...
           groq: "gsk_...",
           openai: "sk-...",
           anthropic: "sk-ant-...",
+          gemini: "AIza...",
           azure: "Azure API Key",
           vertex_ai: "Google Cloud Key",
           ollama: "Not required (local)",
@@ -2511,7 +2610,7 @@ Loading...
               },
               body: JSON.stringify({
                 provider: currentProvider,
-                model: currentModel,
+                model: getSelectedModel(),
                 api_key: apiKey,
               }),
             });
@@ -2541,6 +2640,8 @@ Loading...
           groq: "https://api.groq.com/openai/v1/chat/completions",
           openai: "https://api.openai.com/v1/chat/completions",
           anthropic: "https://api.anthropic.com/v1/messages",
+          gemini:
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
           ollama: "http://localhost:11434/api/chat",
           together_ai: "https://api.together.xyz/v1/chat/completions",
           perplexity: "https://api.perplexity.ai/chat/completions",
@@ -2565,7 +2666,8 @@ Loading...
           currentProvider === "together_ai" ||
           currentProvider === "perplexity" ||
           currentProvider === "deepseek" ||
-          currentProvider === "xai"
+          currentProvider === "xai" ||
+          currentProvider === "gemini"
         ) {
           headers["Authorization"] = `Bearer ${currentApiKey}`;
         } else if (currentProvider === "anthropic") {
@@ -2586,6 +2688,26 @@ Loading...
         }
         // For most providers, return as-is
         return currentModel;
+      }
+
+      // The effective model id: a custom-typed model overrides the dropdown.
+      function getSelectedModel() {
+        const custom = document.getElementById("customModel");
+        const sel = document.getElementById("modelSelect");
+        return (custom && custom.value.trim()) || (sel ? sel.value : "");
+      }
+
+      // Picking from the dropdown clears any custom override
+      function onModelSelectChange() {
+        const custom = document.getElementById("customModel");
+        if (custom) custom.value = "";
+        currentModel = getSelectedModel();
+        localStorage.setItem("ai_model", currentModel);
+      }
+
+      // Typing a custom model id takes precedence over the dropdown
+      function onCustomModelChange() {
+        currentModel = getSelectedModel();
       }
 
       function resetSystemPrompt() {
@@ -2620,7 +2742,7 @@ Loading...
         try {
           const authToken = localStorage.getItem("clippy_auth_token");
           const provider = document.getElementById("providerSelect").value;
-          const model = document.getElementById("modelSelect").value;
+          const model = getSelectedModel();
           const apiKey = document.getElementById("apiKey").value.trim();
 
           const requestBody = { url, provider, model };
@@ -2837,7 +2959,13 @@ Examples:
         if (!input) return;
 
         const message = input.value.trim();
-        if (!message || isProcessing) return;
+        if ((!message && classicAttachments.length === 0) || isProcessing) return;
+
+        // Capture + clear any attached files for this turn
+        const sentAttachments = classicAttachments.slice();
+        const userContent = await buildUserContent(message, sentAttachments);
+        classicAttachments = [];
+        renderAttachChips("clippyAttachments", classicAttachments);
 
         // SEMPRE leggi i valori correnti dai campi input
         const apiKeyInput = document.getElementById("apiKey");
@@ -2845,7 +2973,7 @@ Examples:
         const modelSelect = document.getElementById("modelSelect");
 
         currentProvider = providerSelect.value;
-        currentModel = modelSelect.value;
+        currentModel = getSelectedModel();
         currentApiKey = apiKeyInput.value.trim();
 
         console.log("🔍 Current config:", {
@@ -2886,7 +3014,7 @@ Examples:
         document.getElementById("typingIndicator").classList.add("active");
 
         // Add to history
-        conversationHistory.push({ role: "user", content: message });
+        conversationHistory.push({ role: "user", content: userContent });
 
         // Animate while thinking - vary the animation
         const thinkingAnimations = [
@@ -2938,32 +3066,28 @@ Examples:
 
             data = await response.json();
           } else {
-            // Direct call to provider API
-            const systemPrompt = buildSystemPrompt();
-
-            const requestBody = {
-              model: formatModelName(),
-              messages: [
-                {
-                  role: "system",
-                  content: systemPrompt,
-                },
-                ...conversationHistory,
-              ],
-              temperature: 0.8,
-              max_tokens: 500,
-            };
-
-            console.log("📤 Sending to:", currentProvider, currentModel);
-            console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
-
-            const endpoint = getApiEndpoint();
-            const headers = getApiHeaders();
-
-            const response = await fetch(endpoint, {
+            // Route through our backend (LiteLLM) with the typed key. This
+            // handles multimodal attachments (PDF→text, images) and avoids
+            // provider-specific format / CORS issues in the browser.
+            console.log("📤 Sending via /api/preview/chat:", currentProvider, currentModel);
+            const authToken = localStorage.getItem("clippy_auth_token");
+            const response = await fetch("/api/preview/chat", {
               method: "POST",
-              headers: headers,
-              body: JSON.stringify(requestBody),
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                provider: currentProvider,
+                model: getSelectedModel(),
+                api_key: currentApiKey,
+                system_prompt: buildSystemPrompt(),
+                messages: conversationHistory,
+                temperature: 0.8,
+                max_tokens: 500,
+                web_search_enabled:
+                  document.getElementById("webSearchEnabled")?.checked || false,
+              }),
             });
 
             if (!response.ok) {
@@ -3093,8 +3217,9 @@ Examples:
       }
 
       function reloadAgent() {
-        const agentName = document.getElementById("agentSelect").value;
-        loadAgent(agentName);
+        // Re-render the preview for the currently selected mode, picking up any
+        // changed settings (agent / accent color / dark mode / welcome message).
+        switchPreview();
       }
 
       function testGreeting() {
@@ -3167,7 +3292,8 @@ Examples:
         win95Alert("Code copied to clipboard!", "success");
       }
 
-      // Toggle interface-specific controls based on the selected UI mode
+      // Toggle interface-specific controls based on the selected UI mode,
+      // and switch the live preview between the classic agent and the modern widget.
       function onUiModeChange() {
         const mode = document.getElementById("uiModeSelect").value;
         const isModern = mode === "modern";
@@ -3177,6 +3303,457 @@ Examples:
         if (agentBlock) agentBlock.style.display = isModern ? "none" : "block";
         const modeInd = document.getElementById("modeIndicator");
         if (modeInd) modeInd.textContent = "Mode: " + (isModern ? "Modern" : "Classic");
+        switchPreview();
+      }
+
+      // Live-update the modern preview colors when accent/dark mode change,
+      // without rebuilding the DOM (keeps the current conversation).
+      function onModernAppearanceChange() {
+        if (document.getElementById("modernPreviewRoot")) {
+          injectModernPreviewStyles();
+        }
+      }
+
+      // ============================================================
+      // File attachments (images / PDF) — shared by classic + modern
+      // ============================================================
+      let classicAttachments = [];
+      let modernAttachments = [];
+      const MAX_ATTACH_BYTES = 8 * 1024 * 1024; // 8 MB per file
+
+      function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+
+      // Keep only supported, reasonably-sized files (warns about the rest)
+      function validateAttachments(fileList) {
+        const ok = [];
+        for (const f of fileList) {
+          const isImg = f.type.startsWith("image/");
+          const isPdf = f.type === "application/pdf";
+          if (!isImg && !isPdf) {
+            win95Alert("Only images and PDF files are supported:\n" + f.name, "warning");
+            continue;
+          }
+          if (f.size > MAX_ATTACH_BYTES) {
+            win95Alert("File too large (max 8 MB):\n" + f.name, "warning");
+            continue;
+          }
+          ok.push(f);
+        }
+        return ok;
+      }
+
+      // Build a message's content: plain string when there are no files,
+      // otherwise an OpenAI/LiteLLM-style content array (text + image/file blocks).
+      async function buildUserContent(text, files) {
+        if (!files || files.length === 0) return text;
+        const blocks = [];
+        if (text) blocks.push({ type: "text", text });
+        for (const f of files) {
+          const dataUrl = await readFileAsDataURL(f);
+          if (f.type.startsWith("image/")) {
+            blocks.push({ type: "image_url", image_url: { url: dataUrl } });
+          } else if (f.type === "application/pdf") {
+            blocks.push({
+              type: "file",
+              file: { filename: f.name, file_data: dataUrl },
+            });
+          }
+        }
+        return blocks;
+      }
+
+      // Render the chips for a given attachment list into a container.
+      function renderAttachChips(containerId, list, onChange) {
+        const wrap = document.getElementById(containerId);
+        if (!wrap) return;
+        wrap.innerHTML = "";
+        list.forEach((f, i) => {
+          const chip = document.createElement("span");
+          chip.className = "attach-chip";
+          const name = document.createElement("span");
+          name.className = "attach-name";
+          name.textContent = (f.type.startsWith("image/") ? "🖼️ " : "📄 ") + f.name;
+          const rm = document.createElement("button");
+          rm.type = "button";
+          rm.textContent = "×";
+          rm.title = "Remove";
+          rm.addEventListener("click", () => {
+            list.splice(i, 1);
+            renderAttachChips(containerId, list, onChange);
+            if (onChange) onChange();
+          });
+          chip.append(name, rm);
+          wrap.appendChild(chip);
+        });
+      }
+
+      // Wire the classic balloon's file input once
+      function setupClassicFileInput() {
+        const fileInput = document.getElementById("clippyFileInput");
+        if (!fileInput || fileInput.dataset.wired) return;
+        fileInput.dataset.wired = "1";
+        fileInput.addEventListener("change", () => {
+          const accepted = validateAttachments(Array.from(fileInput.files));
+          classicAttachments = classicAttachments.concat(accepted);
+          renderAttachChips("clippyAttachments", classicAttachments);
+          fileInput.value = "";
+        });
+      }
+
+      // ============================================================
+      // Modern widget — live preview (inside the preview area)
+      // ============================================================
+      let modernPreviewBuilt = false;
+
+      function modernPreviewPalette() {
+        const dark = document.getElementById("darkMode")
+          ? document.getElementById("darkMode").checked
+          : false;
+        return dark
+          ? {
+              bg: "#26262e", text: "#f3f4f6", muted: "#9ca3af",
+              border: "rgba(255,255,255,0.12)", assistantBg: "#33333d", inputBg: "#2d2d36",
+            }
+          : {
+              bg: "#ffffff", text: "#1f2328", muted: "#6b7280",
+              border: "rgba(0,0,0,0.10)", assistantBg: "#f1f3f5", inputBg: "#ffffff",
+            };
+      }
+
+      // (Re)inject the modern preview stylesheet from the current accent/dark settings
+      function injectModernPreviewStyles() {
+        const accent = document.getElementById("accentColor")
+          ? document.getElementById("accentColor").value
+          : "#4f46e5";
+        const v = modernPreviewPalette();
+        let style = document.getElementById("modernPreviewStyles");
+        if (!style) {
+          style = document.createElement("style");
+          style.id = "modernPreviewStyles";
+          document.head.appendChild(style);
+        }
+        style.textContent = `
+          #modernPreviewRoot {
+            --mp-accent: ${accent}; --mp-bg: ${v.bg}; --mp-text: ${v.text};
+            --mp-muted: ${v.muted}; --mp-border: ${v.border};
+            --mp-assistant-bg: ${v.assistantBg}; --mp-input-bg: ${v.inputBg};
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+          }
+          #modernPreviewFab {
+            position: absolute; bottom: 24px; right: 24px; width: 60px; height: 60px;
+            border-radius: 50%; background: var(--mp-accent); color: #fff; border: none;
+            cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.25); font-size: 26px;
+            display: flex; align-items: center; justify-content: center; z-index: 50;
+            transition: transform 0.15s ease;
+          }
+          #modernPreviewFab:hover { transform: scale(1.06); }
+          #modernPreviewPanel {
+            position: absolute; bottom: 96px; right: 24px; width: 360px;
+            max-width: calc(100% - 48px); height: 460px; max-height: calc(100% - 120px);
+            background: var(--mp-bg); color: var(--mp-text); border: 1px solid var(--mp-border);
+            border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.28); display: none;
+            flex-direction: column; overflow: hidden; z-index: 50;
+          }
+          #modernPreviewPanel.mp-open { display: flex; }
+          #modernPreviewRoot .mp-header {
+            background: var(--mp-accent); color: #fff; padding: 14px 16px; display: flex;
+            align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px;
+          }
+          #modernPreviewRoot .mp-close {
+            background: transparent; border: none; color: #fff; font-size: 22px;
+            cursor: pointer; line-height: 1; padding: 0 4px;
+          }
+          #modernPreviewRoot .mp-messages {
+            flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+          }
+          #modernPreviewRoot .mp-bubble {
+            max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px;
+            line-height: 1.45; word-wrap: break-word; overflow-wrap: anywhere;
+          }
+          #modernPreviewRoot .mp-user {
+            align-self: flex-end; background: var(--mp-accent); color: #fff; border-bottom-right-radius: 4px;
+          }
+          #modernPreviewRoot .mp-assistant {
+            align-self: flex-start; background: var(--mp-assistant-bg); color: var(--mp-text); border-bottom-left-radius: 4px;
+          }
+          #modernPreviewRoot .mp-atts { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+          #modernPreviewRoot .mp-input-row {
+            display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--mp-border); align-items: center;
+          }
+          #modernPreviewRoot .mp-attach-row { padding: 0 12px; }
+          #modernPreviewRoot .mp-input-row input[type="text"] {
+            flex: 1; padding: 10px 12px; border: 1px solid var(--mp-border); border-radius: 10px;
+            font-size: 14px; outline: none; background: var(--mp-input-bg); color: var(--mp-text);
+          }
+          #modernPreviewRoot .mp-input-row input[type="text"]:focus { border-color: var(--mp-accent); }
+          #modernPreviewRoot .mp-icon-btn {
+            width: 40px; height: 40px; flex: 0 0 auto; border: none; border-radius: 10px;
+            background: var(--mp-accent); color: #fff; font-size: 18px; cursor: pointer;
+          }
+          #modernPreviewRoot .mp-icon-btn.mp-attach {
+            background: transparent; color: var(--mp-muted); font-size: 20px;
+          }
+          #modernPreviewRoot .mp-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+          #modernPreviewRoot .mp-typing { display: inline-flex; gap: 4px; }
+          #modernPreviewRoot .mp-typing span {
+            width: 7px; height: 7px; border-radius: 50%; background: var(--mp-muted);
+            animation: mpBlink 1.2s infinite both;
+          }
+          #modernPreviewRoot .mp-typing span:nth-child(2) { animation-delay: 0.2s; }
+          #modernPreviewRoot .mp-typing span:nth-child(3) { animation-delay: 0.4s; }
+          @keyframes mpBlink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+        `;
+      }
+
+      function buildModernPreview() {
+        const previewArea = document.querySelector(".preview-content");
+        if (!previewArea) return;
+        let root = document.getElementById("modernPreviewRoot");
+        if (root) root.remove();
+
+        root = document.createElement("div");
+        root.id = "modernPreviewRoot";
+        root.innerHTML = `
+          <div id="modernPreviewPanel" class="mp-open" role="dialog">
+            <div class="mp-header">
+              <span id="modernPreviewTitle">Assistant</span>
+              <button class="mp-close" type="button" title="Close">&times;</button>
+            </div>
+            <div class="mp-messages" id="modernPreviewMessages"></div>
+            <div class="mp-attach-row attach-row" id="modernPreviewAttachments"></div>
+            <div class="mp-input-row">
+              <input type="file" id="modernPreviewFileInput" accept="image/*,application/pdf" multiple style="display:none" />
+              <button class="mp-icon-btn mp-attach" type="button" id="modernPreviewAttachBtn" title="Attach an image or PDF">📎</button>
+              <input type="text" id="modernPreviewInput" placeholder="Type a message..." autocomplete="off" />
+              <button class="mp-icon-btn" type="button" id="modernPreviewSend" title="Send">&#10148;</button>
+            </div>
+          </div>
+          <button id="modernPreviewFab" type="button" title="Open chat">&#128172;</button>
+        `;
+        previewArea.appendChild(root);
+
+        document
+          .getElementById("modernPreviewFab")
+          .addEventListener("click", toggleModernPreviewPanel);
+        root
+          .querySelector(".mp-close")
+          .addEventListener("click", toggleModernPreviewPanel);
+        document
+          .getElementById("modernPreviewSend")
+          .addEventListener("click", sendModernPreviewMessage);
+        document
+          .getElementById("modernPreviewInput")
+          .addEventListener("keypress", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendModernPreviewMessage();
+            }
+          });
+        const mpFile = document.getElementById("modernPreviewFileInput");
+        document
+          .getElementById("modernPreviewAttachBtn")
+          .addEventListener("click", () => mpFile.click());
+        mpFile.addEventListener("change", () => {
+          const accepted = validateAttachments(Array.from(mpFile.files));
+          modernAttachments = modernAttachments.concat(accepted);
+          renderAttachChips("modernPreviewAttachments", modernAttachments);
+          mpFile.value = "";
+        });
+
+        modernPreviewBuilt = true;
+      }
+
+      function toggleModernPreviewPanel() {
+        const panel = document.getElementById("modernPreviewPanel");
+        if (panel) panel.classList.toggle("mp-open");
+      }
+
+      function appendModernPreviewBubble(role, text, attachments) {
+        const list = document.getElementById("modernPreviewMessages");
+        if (!list) return null;
+        const bubble = document.createElement("div");
+        bubble.className = "mp-bubble " + (role === "user" ? "mp-user" : "mp-assistant");
+        if (role === "user") {
+          bubble.textContent = text || "";
+          if (attachments && attachments.length) {
+            const att = document.createElement("div");
+            att.className = "mp-atts";
+            att.textContent = attachments
+              .map((f) => (f.type.startsWith("image/") ? "🖼️ " : "📄 ") + f.name)
+              .join("  ");
+            bubble.appendChild(att);
+          }
+        } else {
+          bubble.innerHTML = parseMarkdown(text);
+        }
+        list.appendChild(bubble);
+        list.scrollTop = list.scrollHeight;
+        return bubble;
+      }
+
+      function showModernPreviewTyping() {
+        const list = document.getElementById("modernPreviewMessages");
+        if (!list) return null;
+        const el = document.createElement("div");
+        el.className = "mp-bubble mp-assistant";
+        el.innerHTML = '<span class="mp-typing"><span></span><span></span><span></span></span>';
+        list.appendChild(el);
+        list.scrollTop = list.scrollHeight;
+        return el;
+      }
+
+      // Clean system prompt for the modern widget (no Clippy animation tags)
+      function buildModernSystemPrompt() {
+        const sysEditor = document.getElementById("systemPromptEditor");
+        const ragArea = document.getElementById("ragContentArea");
+        let base =
+          (sysEditor && sysEditor.value.trim()) ||
+          customSystemPrompt ||
+          "You are a helpful assistant.";
+        const rag = ragArea ? ragArea.value.trim() : "";
+        if (rag) {
+          base += `\n\nKNOWLEDGE BASE (use this to answer questions):\n${rag}`;
+        }
+        return base;
+      }
+
+      async function sendModernPreviewMessage() {
+        const input = document.getElementById("modernPreviewInput");
+        const sendBtn = document.getElementById("modernPreviewSend");
+        if (!input) return;
+        const message = input.value.trim();
+        if ((!message && modernAttachments.length === 0) || isProcessing) return;
+
+        const providerSelect = document.getElementById("providerSelect");
+        const modelSelect = document.getElementById("modelSelect");
+        const apiKeyInput = document.getElementById("apiKey");
+        currentProvider = providerSelect.value;
+        currentModel = getSelectedModel();
+        currentApiKey = apiKeyInput.value.trim();
+        const useBackendChat = editingConfigId && !currentApiKey;
+
+        if (!useBackendChat && currentProvider !== "ollama" && !currentApiKey) {
+          win95Alert("Enter an API Key for " + currentProvider + " (or save the config first).", "warning");
+          return;
+        }
+
+        const sentAttachments = modernAttachments.slice();
+        const userContent = await buildUserContent(message, sentAttachments);
+
+        input.value = "";
+        input.disabled = true;
+        sendBtn.disabled = true;
+        isProcessing = true;
+        modernAttachments = [];
+        renderAttachChips("modernPreviewAttachments", modernAttachments);
+
+        conversationHistory.push({ role: "user", content: userContent });
+        appendModernPreviewBubble("user", message, sentAttachments);
+        const typing = showModernPreviewTyping();
+
+        try {
+          let data;
+          if (useBackendChat) {
+            const response = await fetch("/api/widget/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                config_id: editingConfigId,
+                messages: conversationHistory,
+              }),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            data = await response.json();
+          } else {
+            // Route through our backend (LiteLLM) with the typed key —
+            // handles PDF/image attachments and provider-specific formats.
+            const authToken = localStorage.getItem("clippy_auth_token");
+            const response = await fetch("/api/preview/chat", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({
+                provider: currentProvider,
+                model: getSelectedModel(),
+                api_key: currentApiKey,
+                system_prompt: buildModernSystemPrompt(),
+                messages: conversationHistory,
+                temperature: 0.8,
+                max_tokens: 600,
+                web_search_enabled:
+                  document.getElementById("webSearchEnabled")?.checked || false,
+              }),
+            });
+            if (!response.ok) throw new Error(await response.text());
+            data = await response.json();
+          }
+
+          if (typing) typing.remove();
+          const reply =
+            data.choices &&
+            data.choices[0] &&
+            data.choices[0].message &&
+            data.choices[0].message.content;
+          const text = reply && reply.trim() ? reply : "Sorry, I had a problem. Try again!";
+          conversationHistory.push({ role: "assistant", content: text });
+          appendModernPreviewBubble("assistant", text);
+        } catch (error) {
+          console.error("Modern preview chat error:", error);
+          if (typing) typing.remove();
+          appendModernPreviewBubble("assistant", "❌ Error: " + error.message);
+        }
+
+        isProcessing = false;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
+
+      // ============================================================
+      // Preview dispatcher: classic agent vs modern widget
+      // ============================================================
+      function switchPreview() {
+        const mode = document.getElementById("uiModeSelect").value;
+        // Reset the conversation when switching context
+        conversationHistory = [];
+        isProcessing = false;
+
+        if (mode === "modern") {
+          // Hide the classic agent + balloon
+          hideChatBalloon();
+          if (currentAgent) {
+            try { currentAgent.hide(true); } catch (e) {}
+          }
+          injectModernPreviewStyles();
+          buildModernPreview();
+          document.getElementById("modernPreviewTitle").textContent =
+            (document.getElementById("configName").value.trim() || "Assistant");
+          const welcomeEl = document.getElementById("welcomeMessageEditor");
+          const greeting =
+            (welcomeEl && welcomeEl.value.trim()) ||
+            "Hi! How can I help you today? 😊";
+          appendModernPreviewBubble("assistant", greeting);
+        } else {
+          // Classic: remove modern widget, (re)load the retro agent
+          const root = document.getElementById("modernPreviewRoot");
+          if (root) root.remove();
+          modernPreviewBuilt = false;
+          setupClassicFileInput();
+          if (typeof clippy !== "undefined") {
+            const agentName =
+              document.getElementById("agentSelect").value || "Clippy";
+            loadAgent(agentName);
+          }
+        }
       }
 
       async function saveConfigAndGenerateEmbed() {
@@ -3197,7 +3774,7 @@ Examples:
           document.getElementById("configName").value.trim() || "My Clippy";
         const agentName = document.getElementById("agentSelect").value;
         const provider = document.getElementById("providerSelect").value;
-        const model = document.getElementById("modelSelect").value;
+        const model = getSelectedModel();
         const systemPrompt = document
           .getElementById("systemPromptEditor")
           .value.trim();
@@ -3425,13 +4002,20 @@ Examples:
             !!config.web_search_enabled;
           document.getElementById("maxMessages").value =
             config.max_messages_per_conversation || 0;
-          onUiModeChange();
 
           // Populate models for this provider WITHOUT calling onProviderChange (which clears API key)
           populateModels(config.provider);
 
-          // Set model value
-          document.getElementById("modelSelect").value = config.model;
+          // Set model value. If the saved model isn't in the dropdown list,
+          // surface it in the custom-model field instead (so it's preserved).
+          const modelSelectEl = document.getElementById("modelSelect");
+          const customModelEl = document.getElementById("customModel");
+          modelSelectEl.value = config.model;
+          if (customModelEl) {
+            customModelEl.value =
+              modelSelectEl.value === config.model ? "" : config.model || "";
+          }
+          currentModel = getSelectedModel();
 
           // Update provider info
           const infoEl = document.getElementById("providerInfo");
@@ -3448,6 +4032,10 @@ Examples:
           document.getElementById("ragContentArea").value =
             config.rag_content || "";
           ragContent = config.rag_content;
+
+          // Now that mode + appearance + welcome/system/RAG are all set, toggle
+          // the interface controls and render the matching live preview.
+          onUiModeChange();
 
           // For API key, show a placeholder indicating it's already saved
           const apiKeyInput = document.getElementById("apiKey");
@@ -3505,27 +4093,24 @@ Examples:
 
         console.log("🔍 URL params edit:", editConfigId);
 
+        if (typeof clippy === "undefined") {
+          updateStatus("Errore: Clippy non caricato", "error");
+        }
+
         if (editConfigId) {
           console.log("🔍 EDIT MODE detected");
-          // Edit mode - load config first, THEN initialize
+          // Edit mode - load config first, THEN initialize.
+          // loadConfigForEdit() calls onUiModeChange() → switchPreview() which
+          // renders the correct preview (classic agent or modern widget).
           editingConfigId = editConfigId;
           console.log("🔍 Set editingConfigId to:", editingConfigId);
           await loadConfigForEdit(editConfigId);
         } else {
           console.log("🔍 NORMAL MODE detected");
-          // Normal mode - initialize with defaults
+          // Normal mode - initialize with defaults, then render the preview
+          // for the default (classic) mode via onUiModeChange → switchPreview.
           initializeModelPicker();
           onUiModeChange();
-        }
-
-        if (typeof clippy !== "undefined") {
-          setTimeout(() => {
-            const agentName =
-              document.getElementById("agentSelect").value || "Clippy";
-            loadAgent(agentName);
-          }, 500);
-        } else {
-          updateStatus("Errore: Clippy non caricato", "error");
         }
       });
 

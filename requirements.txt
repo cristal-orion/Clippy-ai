@@ -31,6 +31,9 @@ python-multipart==0.0.9
 httpx>=0.27.0
 beautifulsoup4>=4.12.0
 
+# PDF text extraction for file uploads in the chat widget
+pypdf>=4.0.0
+
 # Optional: Redis for production rate limiting
 # redis==5.2.0
 # aioredis==2.0.1
