@@ -732,11 +732,21 @@
         background: var(--cm-accent); color: #fff; padding: 14px 16px; display: flex;
         align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px;
       }
-      .cm-close {
-        background: transparent; border: none; color: #fff; font-size: 22px;
+      .cm-header-actions { display: flex; align-items: center; gap: 2px; }
+      .cm-close, .cm-expand {
+        background: transparent; border: none; color: #fff;
         cursor: pointer; line-height: 1; padding: 0 4px; opacity: 0.85;
       }
-      .cm-close:hover { opacity: 1; }
+      .cm-close { font-size: 22px; }
+      .cm-expand { font-size: 17px; }
+      .cm-close:hover, .cm-expand:hover { opacity: 1; }
+      /* Expanded ("estendi") size — larger window for longer conversations.
+         max-width/max-height keep it inside the viewport, so on small screens
+         it gracefully becomes near-fullscreen. */
+      #clippy-modern-panel.cm-expanded {
+        width: 720px; height: calc(100vh - 48px);
+        max-height: calc(100vh - 48px); bottom: 24px;
+      }
       .cm-messages {
         flex: 1; overflow-y: auto; padding: 16px; display: flex;
         flex-direction: column; gap: 10px;
@@ -820,7 +830,10 @@
       <div id="clippy-modern-panel" role="dialog" aria-label="${escapeHtml(title)}">
         <div class="cm-header">
           <span class="cm-title">${escapeHtml(title)}</span>
-          <button class="cm-close" id="clippy-modern-close" aria-label="Chiudi">&times;</button>
+          <span class="cm-header-actions">
+            <button class="cm-expand" id="clippy-modern-expand" type="button" aria-label="Espandi" title="Espandi">&#10530;</button>
+            <button class="cm-close" id="clippy-modern-close" aria-label="Chiudi">&times;</button>
+          </span>
         </div>
         <div class="cm-messages" id="clippy-modern-messages"></div>
         <div class="cm-attach-row" id="clippy-modern-attachments"></div>
@@ -841,6 +854,9 @@
     document
       .getElementById("clippy-modern-close")
       .addEventListener("click", toggleModernPanel);
+    document
+      .getElementById("clippy-modern-expand")
+      .addEventListener("click", toggleModernExpand);
     document
       .getElementById("clippy-modern-send")
       .addEventListener("click", sendMessageModern);
@@ -872,6 +888,13 @@
       ? config.welcome_message
       : `Ciao! Sono ${config.name || config.agent}. Come posso aiutarti?`;
     appendBubble("assistant", greeting);
+
+    // Restore the user's last expand/collapse preference
+    try {
+      if (localStorage.getItem("clippy_modern_expanded") === "1") {
+        setModernExpanded(true);
+      }
+    } catch (e) {}
   }
 
   // Open/close the modern chat panel
@@ -884,6 +907,33 @@
       const input = document.getElementById("clippy-modern-input");
       if (input && !input.disabled) setTimeout(() => input.focus(), 50);
     }
+  }
+
+  // Switch the panel between its default size and the larger "expanded" size,
+  // swapping the button glyph (⤢ expand / ⤡ shrink) and persisting the choice
+  // so it sticks across page loads.
+  function setModernExpanded(expanded) {
+    const panel = document.getElementById("clippy-modern-panel");
+    const btn = document.getElementById("clippy-modern-expand");
+    if (!panel) return;
+    panel.classList.toggle("cm-expanded", expanded);
+    if (btn) {
+      btn.innerHTML = expanded ? "&#10529;" : "&#10530;";
+      btn.title = expanded ? "Riduci" : "Espandi";
+      btn.setAttribute("aria-label", expanded ? "Riduci" : "Espandi");
+    }
+    try {
+      localStorage.setItem("clippy_modern_expanded", expanded ? "1" : "0");
+    } catch (e) {}
+    // Keep the latest messages in view after the resize
+    const list = document.getElementById("clippy-modern-messages");
+    if (list) list.scrollTop = list.scrollHeight;
+  }
+
+  function toggleModernExpand() {
+    const panel = document.getElementById("clippy-modern-panel");
+    if (!panel) return;
+    setModernExpanded(!panel.classList.contains("cm-expanded"));
   }
 
   // Append a styled message bubble (assistant rendered via formatMarkdown).
