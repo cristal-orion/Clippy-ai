@@ -221,6 +221,37 @@ def strip_search_tool_artifacts(text):
     return text.strip()
 
 
+def apply_reasoning_controls(provider: str, extra_kwargs: dict) -> None:
+    """Keep "thinking" models from eating the visible-output budget.
+
+    Gemini 2.5+ models spend hidden reasoning tokens out of the SAME
+    max_output_tokens budget as the answer. With web-search grounding active,
+    that reasoning can consume almost the entire budget, so the user sees only a
+    stub truncated mid-sentence (e.g. a reply that dies after ~60 tokens even
+    though max_tokens is 1500). A support chatbot doesn't need extended
+    reasoning, so we disable it for Gemini and let the whole budget go to the
+    reply. `drop_params` makes LiteLLM silently ignore the flag on any model that
+    doesn't accept it, instead of erroring out the whole chat.
+    """
+    if provider == "gemini":
+        extra_kwargs["reasoning_effort"] = "disable"
+        extra_kwargs["drop_params"] = True
+
+
+def log_if_truncated(where: str, model_name: str, max_tokens, response) -> None:
+    """Log when a reply was cut off by the token limit, so truncation is visible
+    in the server logs instead of silently shipping a half answer."""
+    try:
+        finish_reason = response.choices[0].finish_reason
+    except Exception:
+        finish_reason = None
+    if finish_reason == "length":
+        print(
+            f"⚠️ {where}: reply truncated by token limit "
+            f"(model={model_name}, max_tokens={max_tokens}, usage={getattr(response, 'usage', None)})"
+        )
+
+
 def check_rate_limit(client_ip: str) -> bool:
     """Simple in-memory rate limiting"""
     now = datetime.now()
@@ -643,6 +674,7 @@ async def preview_chat(
         extra_kwargs = {}
         if web_search_active:
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
+        apply_reasoning_controls(provider, extra_kwargs)
 
         response = await acompletion(
             model=model_name,
@@ -652,6 +684,7 @@ async def preview_chat(
             **extra_kwargs
         )
 
+        log_if_truncated("preview_chat", model_name, max_tokens, response)
         return {
             "choices": [{
                 "message": {
@@ -760,6 +793,7 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
         extra_kwargs = {}
         if web_search_active:
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
+        apply_reasoning_controls(config.provider, extra_kwargs)
 
         response = await acompletion(
             model=model_name,
@@ -769,6 +803,7 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
             **extra_kwargs
         )
 
+        log_if_truncated("widget_chat", model_name, config.max_tokens, response)
         content = strip_search_tool_artifacts(response.choices[0].message.content)
 
         return {
