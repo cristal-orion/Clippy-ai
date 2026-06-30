@@ -3515,14 +3515,24 @@ Examples:
             flex-direction: column; overflow: hidden; z-index: 50;
           }
           #modernPreviewPanel.mp-open { display: flex; }
+          /* Expanded preview: fills the preview area with a small inset */
+          #modernPreviewPanel.mp-expanded {
+            top: 24px; bottom: 24px; left: 24px; right: 24px;
+            width: auto; height: auto; max-width: none; max-height: none;
+          }
           #modernPreviewRoot .mp-header {
             background: var(--mp-accent); color: #fff; padding: 14px 16px; display: flex;
             align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px;
           }
-          #modernPreviewRoot .mp-close {
-            background: transparent; border: none; color: #fff; font-size: 22px;
-            cursor: pointer; line-height: 1; padding: 0 4px;
+          #modernPreviewRoot .mp-header-actions { display: flex; align-items: center; gap: 6px; }
+          #modernPreviewRoot .mp-close, #modernPreviewRoot .mp-expand {
+            background: transparent; border: none; color: #fff;
+            cursor: pointer; line-height: 1; padding: 2px 4px; opacity: 0.9;
           }
+          #modernPreviewRoot .mp-close { font-size: 22px; }
+          #modernPreviewRoot .mp-expand { display: inline-flex; align-items: center; justify-content: center; }
+          #modernPreviewRoot .mp-expand svg { display: block; width: 17px; height: 17px; }
+          #modernPreviewRoot .mp-close:hover, #modernPreviewRoot .mp-expand:hover { opacity: 1; }
           #modernPreviewRoot .mp-messages {
             flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px;
           }
@@ -3565,6 +3575,13 @@ Examples:
         `;
       }
 
+      // Inline SVG icons for the preview's expand/collapse button (rendered
+      // reliably on every system, unlike a unicode glyph).
+      const MP_EXPAND_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>';
+      const MP_COLLAPSE_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10h-6V4"/><path d="M4 14h6v6"/><path d="M14 10l6-6"/><path d="M10 14l-6 6"/></svg>';
+
       function buildModernPreview() {
         const previewArea = document.querySelector(".preview-content");
         if (!previewArea) return;
@@ -3577,7 +3594,10 @@ Examples:
           <div id="modernPreviewPanel" class="mp-open" role="dialog">
             <div class="mp-header">
               <span id="modernPreviewTitle">Assistant</span>
-              <button class="mp-close" type="button" title="Close">&times;</button>
+              <span class="mp-header-actions">
+                <button class="mp-expand" id="modernPreviewExpand" type="button" aria-label="Espandi" title="Espandi">${MP_EXPAND_SVG}</button>
+                <button class="mp-close" type="button" title="Close">&times;</button>
+              </span>
             </div>
             <div class="mp-messages" id="modernPreviewMessages"></div>
             <div class="mp-attach-row attach-row" id="modernPreviewAttachments"></div>
@@ -3598,6 +3618,9 @@ Examples:
         root
           .querySelector(".mp-close")
           .addEventListener("click", toggleModernPreviewPanel);
+        document
+          .getElementById("modernPreviewExpand")
+          .addEventListener("click", toggleModernPreviewExpand);
         document
           .getElementById("modernPreviewSend")
           .addEventListener("click", sendModernPreviewMessage);
@@ -3626,6 +3649,22 @@ Examples:
       function toggleModernPreviewPanel() {
         const panel = document.getElementById("modernPreviewPanel");
         if (panel) panel.classList.toggle("mp-open");
+      }
+
+      // Enlarge/shrink the preview panel within the preview area, swapping the
+      // button glyph between the expand and collapse SVG icons.
+      function toggleModernPreviewExpand() {
+        const panel = document.getElementById("modernPreviewPanel");
+        const btn = document.getElementById("modernPreviewExpand");
+        if (!panel) return;
+        const expanded = panel.classList.toggle("mp-expanded");
+        if (btn) {
+          btn.innerHTML = expanded ? MP_COLLAPSE_SVG : MP_EXPAND_SVG;
+          btn.title = expanded ? "Riduci" : "Espandi";
+          btn.setAttribute("aria-label", expanded ? "Riduci" : "Espandi");
+        }
+        const list = document.getElementById("modernPreviewMessages");
+        if (list) list.scrollTop = list.scrollHeight;
       }
 
       function appendModernPreviewBubble(role, text, attachments) {

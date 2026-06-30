@@ -732,13 +732,14 @@
         background: var(--cm-accent); color: #fff; padding: 14px 16px; display: flex;
         align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px;
       }
-      .cm-header-actions { display: flex; align-items: center; gap: 2px; }
+      .cm-header-actions { display: flex; align-items: center; gap: 6px; }
       .cm-close, .cm-expand {
         background: transparent; border: none; color: #fff;
-        cursor: pointer; line-height: 1; padding: 0 4px; opacity: 0.85;
+        cursor: pointer; line-height: 1; padding: 2px 4px; opacity: 0.9;
       }
       .cm-close { font-size: 22px; }
-      .cm-expand { font-size: 17px; }
+      .cm-expand { display: inline-flex; align-items: center; justify-content: center; }
+      .cm-expand svg { display: block; width: 17px; height: 17px; }
       .cm-close:hover, .cm-expand:hover { opacity: 1; }
       /* Expanded ("estendi") size — larger window for longer conversations.
          max-width/max-height keep it inside the viewport, so on small screens
@@ -819,6 +820,14 @@
     document.head.appendChild(style);
   }
 
+  // Inline SVG icons for the expand/collapse button — used in the header markup
+  // and swapped on toggle. SVG (not a unicode glyph) so it renders identically
+  // on every system, instead of showing a blank/tofu where a font lacks ⤢.
+  var CM_EXPAND_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M10 20H4v-6"/><path d="M20 4l-7 7"/><path d="M4 20l7-7"/></svg>';
+  var CM_COLLAPSE_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10h-6V4"/><path d="M4 14h6v6"/><path d="M14 10l6-6"/><path d="M10 14l-6 6"/></svg>';
+
   // Build the modern FAB bubble + chat panel and wire up events
   function initModern() {
     injectModernStyles();
@@ -831,7 +840,7 @@
         <div class="cm-header">
           <span class="cm-title">${escapeHtml(title)}</span>
           <span class="cm-header-actions">
-            <button class="cm-expand" id="clippy-modern-expand" type="button" aria-label="Espandi" title="Espandi">&#10530;</button>
+            <button class="cm-expand" id="clippy-modern-expand" type="button" aria-label="Espandi" title="Espandi">${CM_EXPAND_SVG}</button>
             <button class="cm-close" id="clippy-modern-close" aria-label="Chiudi">&times;</button>
           </span>
         </div>
@@ -918,7 +927,7 @@
     if (!panel) return;
     panel.classList.toggle("cm-expanded", expanded);
     if (btn) {
-      btn.innerHTML = expanded ? "&#10529;" : "&#10530;";
+      btn.innerHTML = expanded ? CM_COLLAPSE_SVG : CM_EXPAND_SVG;
       btn.title = expanded ? "Riduci" : "Espandi";
       btn.setAttribute("aria-label", expanded ? "Riduci" : "Espandi");
     }
