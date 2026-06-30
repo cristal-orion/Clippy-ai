@@ -55,7 +55,7 @@ class ClippyConfigBase(BaseModel):
     welcome_message: Optional[str] = None
     rag_content: Optional[str] = None
     temperature: Optional[float] = Field(default=0.8, ge=0.0, le=2.0)
-    max_tokens: Optional[int] = Field(default=500, ge=10, le=4000)
+    max_tokens: Optional[int] = Field(default=1200, ge=10, le=4000)
     allowed_domains: Optional[List[str]] = None
     ui_mode: str = "classic"
     accent_color: Optional[str] = "#4f46e5"

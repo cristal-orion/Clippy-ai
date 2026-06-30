@@ -98,6 +98,25 @@ WEB_SEARCH_INSTRUCTION = (
     "in your reply — output only the final answer for the user."
 )
 
+# Always appended to the system prompt. Models (Gemini especially) tend to treat
+# a request as if they could work on it "in the background": they reply "let me
+# search / one moment / I'll get back to you" and end the turn WITHOUT ever
+# producing the result. But there is no background — the model runs only while
+# generating this single reply, and nothing happens until the user writes again.
+# So a deferral message strands the user, who then has to poke it ("and?") to get
+# the answer it promised. This forbids that stalling pattern and forces the model
+# to finish the whole task inside the current reply.
+NO_DEFERRAL_INSTRUCTION = (
+    "\n\nCRITICAL — you operate in a single turn. You cannot do background work, "
+    "wait, pause, or continue after this message ends; nothing happens between "
+    "your replies. You must FULLY complete the user's request inside this one "
+    "reply and give the final result right now. Never say you are 'working on "
+    "it', 'searching', 'analyzing', 'one moment', 'please wait', or that you will "
+    "send results shortly. If a step is required (reading an attached document, a "
+    "web search, etc.), perform it immediately and present the complete result in "
+    "this same message — never announce an action you are not finishing here."
+)
+
 # ============ Helper Functions ============
 
 def encrypt_api_key(api_key: str) -> str:
@@ -588,7 +607,7 @@ async def preview_chat(
     messages_in = body.get("messages", [])
     system_prompt = body.get("system_prompt") or ""
     temperature = body.get("temperature", 0.8)
-    max_tokens = body.get("max_tokens", 600)
+    max_tokens = body.get("max_tokens", 1200)
     web_search = bool(body.get("web_search_enabled"))
 
     if not provider or not model or not api_key:
@@ -597,11 +616,15 @@ async def preview_chat(
             detail="provider, model, and api_key are required"
         )
 
+    # Keep the preview consistent with the embedded widget: forbid the model from
+    # stalling ("let me search / one moment") and ending the turn without results.
+    system_prompt = (system_prompt or "") + NO_DEFERRAL_INSTRUCTION
+
     # Web search is only honored for providers that support it; when active,
     # nudge the model to actually search rather than answer from memory.
     web_search_active = web_search and provider in WEB_SEARCH_PROVIDERS
     if web_search_active:
-        system_prompt = (system_prompt or "") + WEB_SEARCH_INSTRUCTION
+        system_prompt = system_prompt + WEB_SEARCH_INSTRUCTION
 
     # Build messages: optional system prompt + normalized history
     messages = []
@@ -700,6 +723,10 @@ async def widget_chat(
 
     if config.rag_content:
         system_prompt += f"\n\nKNOWLEDGE BASE:\n{config.rag_content}\n\nUse this information to answer questions."
+
+    # Stop the model from stalling with "let me search / one moment" and ending
+    # the turn — it must complete the task in this single reply.
+    system_prompt += NO_DEFERRAL_INSTRUCTION
 
     # Native web search — only for providers whose APIs support it.
     # Unsupported providers silently ignore the toggle rather than erroring.
