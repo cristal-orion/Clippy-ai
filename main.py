@@ -238,18 +238,83 @@ def apply_reasoning_controls(provider: str, extra_kwargs: dict) -> None:
         extra_kwargs["drop_params"] = True
 
 
-def log_if_truncated(where: str, model_name: str, max_tokens, response) -> None:
-    """Log when a reply was cut off by the token limit, so truncation is visible
-    in the server logs instead of silently shipping a half answer."""
+# Hard cap on auto-continuation rounds, so a model that keeps getting cut off
+# (or never emits a natural stop) can't loop forever / blow up cost.
+MAX_CONTINUATIONS = int(os.getenv("MAX_CONTINUATIONS", "4"))
+
+# Sent as a follow-up user turn to make the model resume a reply that was cut
+# off by the token limit, instead of restarting or apologizing.
+CONTINUE_INSTRUCTION = (
+    "La tua risposta precedente è stata interrotta perché ha raggiunto il limite "
+    "di lunghezza. Continua ESATTAMENTE dal punto in cui si è interrotta: non "
+    "ripetere il testo già scritto, non aggiungere introduzioni, scuse o saluti, "
+    "prosegui e basta fino a completare la risposta."
+)
+
+
+def _finish_reason(response):
+    """Best-effort extraction of the first choice's finish_reason."""
     try:
-        finish_reason = response.choices[0].finish_reason
+        return response.choices[0].finish_reason
     except Exception:
-        finish_reason = None
-    if finish_reason == "length":
+        return None
+
+
+async def complete_with_continuation(
+    model_name, messages, *, temperature, max_tokens, extra_kwargs, where
+):
+    """Call the model and guarantee a complete reply.
+
+    If the response is cut off by the token limit (finish_reason == "length"),
+    automatically ask the model to continue from where it stopped and stitch the
+    pieces together, repeating until it finishes naturally or MAX_CONTINUATIONS
+    is hit. This makes mid-sentence truncation effectively impossible regardless
+    of the cause (thinking-token budget, long answers, provider quirks).
+
+    The continuation calls reuse the same options (web search, reasoning
+    controls, etc.). Returns (full_text, last_response) where last_response is
+    kept for usage reporting. Pieces are concatenated as-is so a word cut in the
+    middle is rejoined correctly.
+    """
+    response = await acompletion(
+        model=model_name,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        **extra_kwargs,
+    )
+    accumulated = response.choices[0].message.content or ""
+    rounds = 0
+
+    while _finish_reason(response) == "length" and rounds < MAX_CONTINUATIONS:
+        rounds += 1
+        print(f"↻ {where}: reply truncated, auto-continuing (round {rounds})")
+        cont_messages = list(messages) + [
+            {"role": "assistant", "content": accumulated},
+            {"role": "user", "content": CONTINUE_INSTRUCTION},
+        ]
+        try:
+            response = await acompletion(
+                model=model_name,
+                messages=cont_messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **extra_kwargs,
+            )
+        except Exception as e:
+            print(f"⚠️ {where}: continuation round {rounds} failed: {e}")
+            break
+        piece = response.choices[0].message.content or ""
+        if not piece.strip():
+            break
+        accumulated += piece
+
+    if _finish_reason(response) == "length":
         print(
-            f"⚠️ {where}: reply truncated by token limit "
-            f"(model={model_name}, max_tokens={max_tokens}, usage={getattr(response, 'usage', None)})"
+            f"⚠️ {where}: still truncated after {rounds} continuation(s) "
+            f"(model={model_name}, max_tokens={max_tokens})"
         )
+    return accumulated, response
 
 
 def check_rate_limit(client_ip: str) -> bool:
@@ -676,20 +741,21 @@ async def preview_chat(
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
         apply_reasoning_controls(provider, extra_kwargs)
 
-        response = await acompletion(
-            model=model_name,
-            messages=messages,
+        # Auto-continues if the reply is cut off by the token limit.
+        raw_content, response = await complete_with_continuation(
+            model_name,
+            messages,
             temperature=temperature,
             max_tokens=max_tokens,
-            **extra_kwargs
+            extra_kwargs=extra_kwargs,
+            where="preview_chat",
         )
 
-        log_if_truncated("preview_chat", model_name, max_tokens, response)
         return {
             "choices": [{
                 "message": {
                     "role": "assistant",
-                    "content": strip_search_tool_artifacts(response.choices[0].message.content)
+                    "content": strip_search_tool_artifacts(raw_content)
                 }
             }],
             "usage": response.usage
@@ -795,16 +861,18 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
             extra_kwargs["web_search_options"] = {"search_context_size": "medium"}
         apply_reasoning_controls(config.provider, extra_kwargs)
 
-        response = await acompletion(
-            model=model_name,
-            messages=messages,
+        # Auto-continues if the reply is cut off by the token limit, so the user
+        # always gets a complete answer.
+        raw_content, response = await complete_with_continuation(
+            model_name,
+            messages,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
-            **extra_kwargs
+            extra_kwargs=extra_kwargs,
+            where="widget_chat",
         )
 
-        log_if_truncated("widget_chat", model_name, config.max_tokens, response)
-        content = strip_search_tool_artifacts(response.choices[0].message.content)
+        content = strip_search_tool_artifacts(raw_content)
 
         return {
             "choices": [{
