@@ -1666,6 +1666,7 @@
         </div>
         </div>
         <div class="settings-modal-footer">
+          <button class="btn-primary" onclick="reloadAgent()">🔄 Apply Changes</button>
           <button class="btn-secondary" onclick="closeSettings()">Close</button>
         </div>
       </div>
@@ -2568,43 +2569,6 @@ Loading...
         }
       }
 
-      function reloadAgent() {
-        // Get current selections
-        const providerSelect = document.getElementById("providerSelect");
-        const modelSelect = document.getElementById("modelSelect");
-        const apiKeyInput = document.getElementById("apiKey");
-        const agentSelect = document.getElementById("agentSelect");
-
-        currentProvider = providerSelect.value;
-        currentModel = modelSelect.value;
-        currentApiKey = apiKeyInput.value;
-        const selectedAgent = agentSelect.value;
-
-        // Validate API key (unless Ollama or editing with stored key)
-        if (currentProvider !== "ollama" && !currentApiKey && !editingConfigId) {
-          win95Alert("Enter a valid API key for " + currentProvider, "warning");
-          updateStatus("❌ API key missing", "error");
-          return;
-        }
-
-        // Save provider/model preferences (NOT the API key)
-        localStorage.setItem("ai_provider", currentProvider);
-        localStorage.setItem("ai_model", currentModel);
-
-        // Reload agent
-        loadAgent(selectedAgent);
-
-        updateStatus(
-          `✅ Configurato: ${currentProvider}/${currentModel}`,
-          "success"
-        );
-        console.log("🔧 Configuration updated:", {
-          currentProvider,
-          currentModel,
-          agent: selectedAgent,
-        });
-      }
-
       async function testConnection() {
         const statusDiv = document.getElementById("connectionStatus");
         statusDiv.style.display = "block";
@@ -3269,10 +3233,20 @@ Examples:
         }
       }
 
-      function reloadAgent() {
+      async function reloadAgent() {
+        // Persist edits before refreshing the preview or reporting success.
+        if (editingConfigId) {
+          const saved = await saveConfigAndGenerateEmbed({ generateEmbed: false });
+          if (!saved) return;
+        }
+
         // Re-render the preview for the currently selected mode, picking up any
         // changed settings (agent / accent color / dark mode / welcome message).
         switchPreview();
+
+        if (editingConfigId) {
+          updateStatus(`✅ Configuration updated! ID: ${editingConfigId}`, "success");
+        }
       }
 
       function testGreeting() {
@@ -3847,7 +3821,7 @@ Examples:
         }
       }
 
-      async function saveConfigAndGenerateEmbed() {
+      async function saveConfigAndGenerateEmbed({ generateEmbed = true } = {}) {
         // Check authentication
         const authToken = localStorage.getItem("clippy_auth_token");
         if (!authToken) {
@@ -3954,6 +3928,9 @@ Examples:
 
           console.log("✅ Configuration saved:", data);
 
+          // Apply Changes shares the save path without opening the embed output.
+          if (!generateEmbed) return true;
+
           // Generate embed code with instructions
           const backendUrl = window.location.origin;
           const embedCode = `<!-- ✨ Clippy AI Widget - Ready to use! ✨ -->
@@ -4009,10 +3986,12 @@ Examples:
             showChatBalloon(balloonMessage);
             currentAgent.play("Congratulate");
           }
+          return true;
         } catch (error) {
           console.error("Error saving config:", error);
           updateStatus("❌ Error saving", "error");
           win95Alert("Error: " + error.message, "error");
+          return false;
         }
       }
 
