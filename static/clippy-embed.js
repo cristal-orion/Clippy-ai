@@ -17,6 +17,7 @@
   let conversationHistory = [];
   let isProcessing = false;
   let uiReady = null; // Promise<boolean>: interactive-UI bundle loaded
+  let consentId = null; // privacy notice accepted (when the bot asks for it)
 
   // Detect backend URL from script source
   function detectBackendUrl() {
@@ -234,6 +235,7 @@
     if (balloon.style.display === "none") {
       balloon.style.display = "block";
       if (clippyAgent) clippyAgent.play("Explain");
+      if (needsConsent()) showClassicPrivacy();
     } else {
       balloon.style.display = "none";
       if (clippyAgent) clippyAgent.play("Hide");
@@ -435,7 +437,8 @@
   // Show message in balloon
   // Show message in custom balloon (NOT using ClippyJS native balloon)
   function formatMarkdown(text) {
-    return text
+    // Escape first: replies can echo text from web pages or users, never markup.
+    return escapeHtml(text)
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/`(.+?)`/g, "<code style='background:#eee;padding:1px 4px;border-radius:3px;font-size:0.9em;'>$1</code>")
@@ -464,6 +467,10 @@
     const message = input.value.trim();
 
     if ((!message && classicAttachments.length === 0) || isProcessing) return;
+    if (needsConsent()) {
+      showClassicPrivacy();
+      return;
+    }
 
     // Capture + clear attachments for this turn
     const sentAttachments = classicAttachments.slice();
@@ -492,8 +499,17 @@
         body: JSON.stringify({
           config_id: CONFIG_ID, // Only config ID needed - backend uses stored API key
           messages: conversationHistory,
+          consent_id: consentId,
         }),
       });
+
+      if (await consentRejected(response)) {
+        conversationHistory.pop();
+        forgetConsent();
+        isProcessing = false;
+        showClassicPrivacy();
+        return;
+      }
 
       // Conversation message cap reached (server-side gate)
       if (response.status === 429) {
@@ -900,6 +916,9 @@
       : `Ciao! Sono ${config.name || config.agent}. Come posso aiutarti?`;
     appendBubble("assistant", greeting);
 
+    // Privacy notice before the first message, if the bot asks for consent
+    if (needsConsent()) showModernPrivacy();
+
     // Restore the user's last expand/collapse preference
     try {
       if (localStorage.getItem("clippy_modern_expanded") === "1") {
@@ -1003,6 +1022,7 @@
       accent: config.accent_color,
       dark: !!config.dark_mode,
       onMessage: sendQuickMessage,
+      lead: leadOptions(),
       onFallback: function () {
         bubble.classList.remove("cm-ui");
         bubble.innerHTML = formatMarkdown(text);
@@ -1034,6 +1054,217 @@
     if (!input || input.disabled || isProcessing) return;
     input.value = text;
     sendMessageModern();
+  }
+
+  // ---- Lead form (LeadForm in interactive replies) ----
+
+  function leadOptions() {
+    if (!config.leads || !config.leads.enabled) return undefined;
+    return {
+      consentText: config.leads.consent_text,
+      policyUrl: config.leads.policy_url,
+      submit: submitLead,
+    };
+  }
+
+  // The visitor's own messages, as context for the team that calls back.
+  function visitorMessages() {
+    return conversationHistory
+      .filter(function (m) { return m.role === "user"; })
+      .map(function (m) {
+        if (typeof m.content === "string") return m.content;
+        return (m.content || [])
+          .filter(function (p) { return p.type === "text"; })
+          .map(function (p) { return p.text; })
+          .join(" ");
+      })
+      .filter(Boolean)
+      .slice(-12);
+  }
+
+  async function submitLead(values) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/widget/lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          config_id: CONFIG_ID,
+          consent_id: consentId,
+          fields: values,
+          conversation: visitorMessages(),
+          page: location.href,
+        }),
+      });
+      if (response.ok) {
+        // Let the bot know, so it doesn't ask for the details again.
+        conversationHistory.push({ role: "user", content: "(Ho inviato il modulo di contatto con i miei recapiti.)" });
+        conversationHistory.push({ role: "assistant", content: "Grazie! Ho inoltrato la tua richiesta al team, ti ricontatteranno a breve." });
+        return { ok: true };
+      }
+      let detail = "";
+      try { detail = (await response.json()).detail; } catch (e) {}
+      if (detail === "consent_required") {
+        forgetConsent();
+        showModernPrivacy();
+        return { ok: false, error: "Accetta l'informativa privacy e riprova." };
+      }
+      if ((response.status === 422 || response.status === 429) && typeof detail === "string") {
+        return { ok: false, error: detail };
+      }
+      return { ok: false, error: "Invio non riuscito, riprova tra poco." };
+    } catch (e) {
+      return { ok: false, error: "Connessione non riuscita, riprova." };
+    }
+  }
+
+  // ---- Privacy notice (GDPR): accepted before the first message ----
+
+  function privacyRequired() {
+    return !!(config && config.privacy && config.privacy.enabled);
+  }
+
+  function consentKey() {
+    return "clippy_consent_" + CONFIG_ID;
+  }
+
+  // A previous acceptance counts only for the same text of the notice.
+  function loadStoredConsent() {
+    if (!privacyRequired()) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(consentKey()) || "null");
+      if (saved && saved.id && saved.v === config.privacy.version) consentId = saved.id;
+    } catch (e) {}
+  }
+
+  function needsConsent() {
+    return privacyRequired() && !consentId;
+  }
+
+  function forgetConsent() {
+    consentId = null;
+    try { localStorage.removeItem(consentKey()); } catch (e) {}
+  }
+
+  async function acceptPrivacy() {
+    const response = await fetch(`${BACKEND_URL}/api/widget/consent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config_id: CONFIG_ID, page: location.href }),
+    });
+    if (!response.ok) throw new Error("consent not recorded");
+    const data = await response.json();
+    consentId = data.consent_id;
+    try {
+      localStorage.setItem(consentKey(), JSON.stringify({ id: consentId, v: data.version }));
+    } catch (e) {}
+  }
+
+  // **bold** and [links](https://...) in the owner's notice text, escaped.
+  function formatNotice(text) {
+    return escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\n/g, "<br>");
+  }
+
+  function injectPrivacyStyles() {
+    if (document.getElementById("clippy-privacy-styles")) return;
+    const style = document.createElement("style");
+    style.id = "clippy-privacy-styles";
+    style.textContent = `
+      .clippy-privacy { margin: 4px 0; padding: 12px 14px; border-radius: 12px; display: flex;
+        flex-direction: column; gap: 8px; text-align: left; font-size: 13px; line-height: 1.45;
+        background: var(--cm-assistant-bg, #fff); color: var(--cm-text, #222);
+        border: 1px solid var(--cm-border, rgba(0,0,0,0.15)); }
+      .clippy-privacy-title { font-weight: 700; font-size: 14px; }
+      .clippy-privacy a { color: var(--cm-accent, #4f46e5); text-decoration: underline; }
+      .clippy-privacy-accept { align-self: flex-start; border: 0; border-radius: 999px; padding: 8px 14px;
+        background: var(--cm-accent, #4f46e5); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      .clippy-privacy-accept:disabled { opacity: 0.6; cursor: default; }
+      .clippy-privacy-error { color: #b91c1c; font-size: 12px; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function buildPrivacyNotice(onAccepted) {
+    const p = config.privacy;
+    injectPrivacyStyles();
+    const box = document.createElement("div");
+    box.className = "clippy-privacy";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-label", "Informativa privacy");
+    box.innerHTML =
+      '<div class="clippy-privacy-title">🔒 Prima di iniziare</div>' +
+      '<div class="clippy-privacy-text">' + formatNotice(p.text || "") + "</div>" +
+      (p.policy_url
+        ? '<a href="' + escapeHtml(p.policy_url) + '" target="_blank" rel="noopener noreferrer">Leggi l\'informativa privacy ↗</a>'
+        : "") +
+      '<button type="button" class="clippy-privacy-accept">' + escapeHtml(p.button_label || "Accetto") + "</button>" +
+      '<div class="clippy-privacy-error" hidden></div>';
+    const button = box.querySelector(".clippy-privacy-accept");
+    const error = box.querySelector(".clippy-privacy-error");
+    button.addEventListener("click", async function () {
+      button.disabled = true;
+      try {
+        await acceptPrivacy();
+        box.remove();
+        onAccepted();
+      } catch (e) {
+        button.disabled = false;
+        error.hidden = false;
+        error.textContent = "Non è stato possibile registrare il consenso. Riprova.";
+      }
+    });
+    return box;
+  }
+
+  function setModernInputLocked(locked) {
+    ["clippy-modern-input", "clippy-modern-send", "clippy-modern-attach"].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.disabled = locked;
+    });
+  }
+
+  function showModernPrivacy() {
+    const list = document.getElementById("clippy-modern-messages");
+    if (!list || list.querySelector(".clippy-privacy")) return;
+    setModernInputLocked(true);
+    list.appendChild(
+      buildPrivacyNotice(function () {
+        setModernInputLocked(false);
+        const input = document.getElementById("clippy-modern-input");
+        if (input) input.focus();
+      })
+    );
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function showClassicPrivacy() {
+    const messageDiv = document.getElementById("clippy-message");
+    if (!messageDiv || messageDiv.querySelector(".clippy-privacy")) return;
+    const input = document.getElementById("clippy-input");
+    const sendBtn = document.getElementById("clippy-send");
+    if (input) input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+    messageDiv.innerHTML = "";
+    messageDiv.appendChild(
+      buildPrivacyNotice(function () {
+        if (input) input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        showMessage("Perfetto, grazie! Come posso aiutarti?");
+        if (input) input.focus();
+      })
+    );
+  }
+
+  // The server refused the chat because consent is missing or out of date.
+  async function consentRejected(response) {
+    if (response.status !== 403) return false;
+    try {
+      return (await response.clone().json()).detail === "consent_required";
+    } catch (e) {
+      return false;
+    }
   }
 
   // Append a small centered notice (e.g. limit reached)
@@ -1078,6 +1309,10 @@
     const message = input.value.trim();
 
     if ((!message && modernAttachments.length === 0) || isProcessing) return;
+    if (needsConsent()) {
+      showModernPrivacy();
+      return;
+    }
 
     // Capture + clear attachments for this turn
     const sentAttachments = modernAttachments.slice();
@@ -1102,10 +1337,19 @@
         body: JSON.stringify({
           config_id: CONFIG_ID,
           messages: conversationHistory,
+          consent_id: consentId,
         }),
       });
 
       if (typing) typing.remove();
+
+      if (await consentRejected(response)) {
+        conversationHistory.pop();
+        forgetConsent();
+        showModernPrivacy();
+        isProcessing = false;
+        return;
+      }
 
       // Conversation message cap reached (server-side gate)
       if (response.status === 429) {
@@ -1158,6 +1402,7 @@
       console.error("Clippy Widget: Failed to load configuration");
       return;
     }
+    loadStoredConsent();
 
     // Modern mode: skip jQuery/ClippyJS entirely, render a clean chat widget.
     if (config.ui_mode === "modern") {

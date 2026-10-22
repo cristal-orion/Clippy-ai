@@ -100,3 +100,19 @@
 .cui-root .cui-button:hover:not(:disabled) { filter: brightness(1.08); }
 .cui-root .cui-button:disabled { opacity: 0.55; cursor: default; }
 .cui-root.cui-dark .cui-button-secondary { color: #fff; }
+
+/* Lead form */
+.cui-root .cui-form { gap: 10px; }
+.cui-root .cui-fields > .cui-field { flex: 1 1 140px; }
+.cui-root .cui-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-weight: 600; color: var(--cui-muted); margin: 0; }
+.cui-root .cui-field input, .cui-root .cui-field textarea {
+  font: inherit; font-size: 14px; font-weight: 400; color: var(--cui-fg);
+  background: var(--cui-surface); border: 1px solid var(--cui-border); border-radius: 8px;
+  padding: 7px 9px; width: 100%; margin: 0; box-shadow: none; outline: none; resize: vertical;
+}
+.cui-root .cui-field input:focus, .cui-root .cui-field textarea:focus { border-color: var(--cui-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cui-accent) 25%, transparent); }
+.cui-root .cui-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; color: var(--cui-fg); margin: 0; }
+.cui-root .cui-consent input { margin: 2px 0 0; flex: 0 0 auto; width: 16px; height: 16px; accent-color: var(--cui-accent); }
+.cui-root .cui-hp { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; overflow: hidden; }
+.cui-root .cui-form-error { margin: 0; font-size: 13px; color: var(--cui-danger-fg); background: var(--cui-danger-bg); padding: 6px 9px; border-radius: 8px; }
+.cui-root .cui-form-done { border-color: var(--cui-success-fg); }

@@ -1349,6 +1349,9 @@
           <button class="menu-button" type="button" onclick="openModal('modal-test')">🧪 Test</button>
         </div>
         <div class="menu-item">
+          <button class="menu-button" type="button" onclick="openPrivacy()">🔒 Privacy &amp; Contatti</button>
+        </div>
+        <div class="menu-item">
           <button class="menu-button" type="button" onclick="openModal('modal-deploy')">💾 Deploy</button>
         </div>
         <div class="menu-spacer"></div>
@@ -1922,6 +1925,75 @@
           <button class="btn-secondary" onclick="closeSettings()">Close</button>
         </div>
       </div>
+      <div class="settings-modal" id="modal-privacy">
+        <div class="settings-modal-titlebar"><span>🔒 Privacy &amp; Contatti</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
+        <!-- Privacy notice shown before the chat -->
+        <div class="control-group">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+            <input type="checkbox" id="privacyEnabled" onchange="onPrivacyChange()" />
+            <span>🔒 Chiedi di accettare l'informativa prima della chat</span>
+          </label>
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
+            Finché non accetta, il visitatore non può scrivere. Il consenso viene
+            registrato con data e versione del testo (senza IP); se modifichi il
+            testo, viene richiesto di nuovo.
+          </p>
+        </div>
+        <div class="control-group">
+          <label for="privacyText">Testo dell'informativa breve</label>
+          <textarea id="privacyText" rows="5" oninput="onPrivacyChange()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;"></textarea>
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">Vuoto = testo predefinito. Puoi usare **grassetto** e [link](https://…).</p>
+        </div>
+        <div class="control-group">
+          <label for="privacyPolicyUrl">Link all'informativa privacy completa</label>
+          <input type="url" id="privacyPolicyUrl" placeholder="https://www.sito-cliente.it/privacy" oninput="onPrivacyChange()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;" />
+        </div>
+        <div class="control-group">
+          <label for="privacyButtonLabel">Testo del pulsante</label>
+          <input type="text" id="privacyButtonLabel" maxlength="80" oninput="onPrivacyChange()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;" />
+        </div>
+
+        <!-- Lead delivery -->
+        <div class="control-group" style="border-top: 1px solid #c0c0c0; padding-top: 12px">
+          <label for="leadEmails">📩 Email che ricevono i contatti</label>
+          <input type="text" id="leadEmails" placeholder="commerciale@cliente.it, titolare@cliente.it" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;" />
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
+            Fino a 3 indirizzi, separati da virgola. Il bot mostra il modulo contatti
+            solo con 🖥️ Interface → ✨ Interactive UI attiva.
+          </p>
+        </div>
+        <div class="control-group">
+          <label for="leadConsentText">Testo del consenso nel modulo contatti</label>
+          <textarea id="leadConsentText" rows="3" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;"></textarea>
+        </div>
+        <div class="control-group">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <button class="btn-secondary" type="button" onclick="sendTestLead()">📨 Invia email di prova</button>
+            <button class="btn-secondary" type="button" onclick="openLeads()">📋 Contatti ricevuti</button>
+          </div>
+          <p id="leadStatus" style="font-size: 0.78em; margin-top: 4px; color: #404040"></p>
+        </div>
+        <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
+          ℹ️ I testi predefiniti sono un punto di partenza: falli verificare dal
+          consulente privacy del cliente e collegali alla sua informativa.
+        </p>
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-primary" onclick="reloadAgent()">🔄 Apply Changes</button>
+          <button class="btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+      </div>
+      <div class="settings-modal" id="modal-leads">
+        <div class="settings-modal-titlebar"><span>📋 Contatti ricevuti</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
+        <div class="settings-modal-body">
+          <div id="leadsList" style="display: flex; flex-direction: column; gap: 10px">Caricamento…</div>
+        </div>
+        <div class="settings-modal-footer">
+          <button class="btn-secondary" onclick="exportLeadsCsv()">⬇️ Esporta CSV</button>
+          <button class="btn-secondary" onclick="openPrivacy()">← Privacy &amp; Contatti</button>
+        </div>
+      </div>
       <div class="settings-modal" id="modal-deploy">
         <div class="settings-modal-titlebar"><span>💾 Save & Generate Embed</span><button class="win95-popup-close" onclick="closeSettings()">×</button></div>
         <div class="settings-modal-body">
@@ -2371,6 +2443,8 @@ Loading...
       // Convert Markdown-style formatting to HTML
       function parseMarkdown(text) {
         if (!text) return text;
+        // Escape first: replies can echo text from web pages, never markup.
+        text = escapeHtml(text);
 
         // Convert **bold** to <strong>bold</strong>
         text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -3538,6 +3612,17 @@ Examples:
             align-self: flex-start; background: var(--mp-assistant-bg); color: var(--mp-text); border-bottom-left-radius: 4px;
           }
           #modernPreviewRoot .mp-ui { max-width: 100%; width: 100%; overflow-wrap: normal; }
+          #modernPreviewRoot .mp-privacy {
+            display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 12px;
+            background: var(--mp-assistant-bg); color: var(--mp-text); border: 1px solid var(--mp-border);
+            font-size: 13px; line-height: 1.45;
+          }
+          #modernPreviewRoot .mp-privacy-title { font-weight: 700; font-size: 14px; }
+          #modernPreviewRoot .mp-privacy a { color: var(--mp-accent); text-decoration: underline; }
+          #modernPreviewRoot .mp-privacy button {
+            align-self: flex-start; border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer;
+            background: var(--mp-accent); color: #fff; font: inherit; font-weight: 600;
+          }
           #modernPreviewRoot .mp-atts { font-size: 12px; opacity: 0.85; margin-top: 4px; }
           #modernPreviewRoot .mp-input-row {
             display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--mp-border); align-items: center;
@@ -3682,12 +3767,275 @@ Examples:
         return bubble;
       }
 
+      // ============================================================
+      // Privacy notice & leads (🔒 Privacy & Contatti)
+      // ============================================================
+      let privacyDefaults = null;
+      let previewConsentAccepted = false;
+      let previewConsentId = null; // real consent when the preview chats as the saved bot
+      let currentLeads = [];
+
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // **bold** and [links](https://...) in a privacy text, escaped.
+      function formatNotice(text) {
+        return escapeHtml(text)
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+          .replace(/\n/g, "<br>");
+      }
+
+      function authHeaders(json = false) {
+        const headers = { Authorization: `Bearer ${localStorage.getItem("clippy_auth_token")}` };
+        if (json) headers["Content-Type"] = "application/json";
+        return headers;
+      }
+
+      function setLeadStatus(message) {
+        const el = document.getElementById("leadStatus");
+        if (el) el.textContent = message || "";
+      }
+
+      async function loadPrivacyDefaults() {
+        if (!privacyDefaults) {
+          try {
+            const res = await fetch("/api/privacy/defaults", { headers: authHeaders() });
+            if (res.ok) privacyDefaults = await res.json();
+          } catch (e) {}
+        }
+        if (privacyDefaults) {
+          document.getElementById("privacyText").placeholder = privacyDefaults.privacy_text;
+          document.getElementById("privacyButtonLabel").placeholder = privacyDefaults.privacy_button_label;
+          document.getElementById("leadConsentText").placeholder = privacyDefaults.lead_consent_text;
+          if (!privacyDefaults.relay_configured) {
+            setLeadStatus("⚠️ Invio email non ancora configurato sul server (FORM_RELAY_TOKEN): i contatti vengono salvati ma non spediti.");
+          }
+        }
+        return privacyDefaults;
+      }
+
+      function openPrivacy() {
+        openModal("modal-privacy");
+        loadPrivacyDefaults();
+      }
+
+      // The notice as the preview shows it: the editor's fields, or the defaults.
+      function previewPrivacy() {
+        if (!document.getElementById("privacyEnabled")?.checked) return null;
+        const d = privacyDefaults || {};
+        return {
+          text: document.getElementById("privacyText").value.trim() || d.privacy_text || "",
+          policy_url: document.getElementById("privacyPolicyUrl").value.trim(),
+          button_label: document.getElementById("privacyButtonLabel").value.trim() || d.privacy_button_label || "Accetto",
+        };
+      }
+
+      // Editing the notice asks for consent again, as it does for visitors.
+      function onPrivacyChange() {
+        previewConsentAccepted = false;
+        previewConsentId = null;
+        document.querySelectorAll("#modernPreviewMessages .mp-privacy").forEach((el) => el.remove());
+        if (previewPrivacy()) loadPrivacyDefaults().then(showPreviewPrivacy);
+      }
+
+      function showPreviewPrivacy() {
+        const p = previewPrivacy();
+        const list = document.getElementById("modernPreviewMessages");
+        if (!p || !list || list.querySelector(".mp-privacy")) return;
+        const box = document.createElement("div");
+        box.className = "mp-privacy";
+        box.innerHTML =
+          '<div class="mp-privacy-title">🔒 Prima di iniziare</div>' +
+          "<div>" + formatNotice(p.text) + "</div>" +
+          (p.policy_url
+            ? '<a href="' + escapeHtml(p.policy_url) + '" target="_blank" rel="noopener noreferrer">Leggi l\'informativa privacy ↗</a>'
+            : "") +
+          '<button type="button">' + escapeHtml(p.button_label) + "</button>";
+        box.querySelector("button").addEventListener("click", async () => {
+          // A saved bot chats through the widget endpoint, which checks consent for real.
+          if (editingConfigId) {
+            try {
+              const res = await fetch("/api/widget/consent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ config_id: editingConfigId, page: location.href }),
+              });
+              if (res.ok) previewConsentId = (await res.json()).consent_id;
+            } catch (e) {}
+          }
+          previewConsentAccepted = true;
+          box.remove();
+          document.getElementById("modernPreviewInput")?.focus();
+        });
+        list.appendChild(box);
+        list.scrollTop = list.scrollHeight;
+      }
+
+      function previewVisitorMessages() {
+        return conversationHistory
+          .filter((m) => m.role === "user")
+          .map((m) =>
+            typeof m.content === "string"
+              ? m.content
+              : (m.content || []).filter((p) => p.type === "text").map((p) => p.text).join(" ")
+          )
+          .filter(Boolean)
+          .slice(-12);
+      }
+
+      // "[PROVA]" lead to the editor's recipients: sample data, or the preview's form.
+      async function postTestLead(fields) {
+        try {
+          const res = await fetch("/api/leads/test", {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({
+              lead_emails: document.getElementById("leadEmails").value,
+              bot_name: document.getElementById("configName")?.value || "",
+              fields: fields || null,
+              conversation: fields ? previewVisitorMessages() : [],
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) return { ok: false, error: typeof data.detail === "string" ? data.detail : "Invio non riuscito" };
+          return data;
+        } catch (e) {
+          return { ok: false, error: "Connessione non riuscita" };
+        }
+      }
+
+      async function sendTestLead() {
+        setLeadStatus("Invio in corso…");
+        const r = await postTestLead(null);
+        setLeadStatus(
+          r.ok
+            ? `✅ Email di prova inviata a ${r.recipients.join(", ")}. Controlla la casella (anche lo spam).`
+            : "⚠️ " + (r.error || "Invio non riuscito")
+        );
+      }
+
+      // In the preview the form sends a "[PROVA]" email and stores nothing.
+      function previewLeadOptions() {
+        if (!document.getElementById("leadEmails")?.value.trim()) return undefined;
+        return {
+          consentText:
+            document.getElementById("leadConsentText").value.trim() ||
+            privacyDefaults?.lead_consent_text ||
+            "Acconsento al trattamento dei miei dati per essere ricontattato.",
+          policyUrl: document.getElementById("privacyPolicyUrl").value.trim(),
+          submit: async (values) => {
+            const r = await postTestLead(values);
+            if (!r.ok) return { ok: false, error: r.error || "Invio non riuscito" };
+            conversationHistory.push({ role: "user", content: "(Ho inviato il modulo di contatto con i miei recapiti.)" });
+            conversationHistory.push({ role: "assistant", content: "Grazie! Ho inoltrato la tua richiesta al team, ti ricontatteranno a breve." });
+            updateStatus(`📨 Contatto di prova inviato a ${r.recipients.join(", ")}`, "success");
+            return { ok: true };
+          },
+        };
+      }
+
+      async function openLeads() {
+        if (!editingConfigId) {
+          setLeadStatus("Salva prima il bot (💾 Deploy) per vedere i contatti ricevuti.");
+          return;
+        }
+        openModal("modal-leads");
+        const list = document.getElementById("leadsList");
+        list.textContent = "Caricamento…";
+        try {
+          const res = await fetch(`/api/configs/${encodeURIComponent(editingConfigId)}/leads`, { headers: authHeaders() });
+          if (!res.ok) throw new Error(res.status);
+          currentLeads = (await res.json()).leads;
+          renderLeads();
+        } catch (e) {
+          list.textContent = "Impossibile caricare i contatti.";
+        }
+      }
+
+      function renderLeads() {
+        const list = document.getElementById("leadsList");
+        if (!currentLeads.length) {
+          list.textContent = "Nessun contatto ricevuto finora.";
+          return;
+        }
+        const status = {
+          sent: "✅ Inviato",
+          failed: "⚠️ Non inviato",
+          not_configured: "⚠️ Invio non configurato",
+          pending: "⏳ In invio",
+        };
+        list.innerHTML = currentLeads
+          .map((l) => {
+            const when = l.created_at ? new Date(l.created_at).toLocaleString("it-IT") : "";
+            const failed = l.delivery_status !== "sent";
+            return `<div style="border: 1px solid #c0c0c0; background: #fff; padding: 8px 10px; font-size: 0.85em; line-height: 1.45">
+              <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap">
+                <strong>${escapeHtml(l.name)}${l.company ? " · " + escapeHtml(l.company) : ""}</strong>
+                <span>${escapeHtml(when)}</span>
+              </div>
+              <div><a href="mailto:${escapeHtml(l.email)}">${escapeHtml(l.email)}</a>${l.phone ? " · " + escapeHtml(l.phone) : ""}</div>
+              ${l.note ? `<div style="margin-top: 4px">${escapeHtml(l.note)}</div>` : ""}
+              ${l.conversation ? `<details style="margin-top: 4px"><summary>Messaggi in chat</summary><div style="white-space: pre-wrap">${escapeHtml(l.conversation)}</div></details>` : ""}
+              <div style="margin-top: 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap">
+                <span title="${escapeHtml(l.delivery_error || "")}">${status[l.delivery_status] || escapeHtml(l.delivery_status)}</span>
+                ${failed ? `<button class="btn-secondary" type="button" onclick="resendLead(${l.id})">↻ Reinvia</button>` : ""}
+                <button class="btn-secondary" type="button" onclick="deleteLead(${l.id})">🗑️ Elimina</button>
+              </div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      async function resendLead(id) {
+        const res = await fetch(`/api/leads/${id}/resend`, { method: "POST", headers: authHeaders() });
+        if (res.ok) {
+          const updated = await res.json();
+          currentLeads = currentLeads.map((l) => (l.id === id ? updated : l));
+          renderLeads();
+        }
+      }
+
+      async function deleteLead(id) {
+        if (!confirm("Eliminare definitivamente questo contatto?")) return;
+        const res = await fetch(`/api/leads/${id}`, { method: "DELETE", headers: authHeaders() });
+        if (res.ok) {
+          currentLeads = currentLeads.filter((l) => l.id !== id);
+          renderLeads();
+        }
+      }
+
+      function exportLeadsCsv() {
+        if (!currentLeads.length) return;
+        // A leading = + - @ would make a spreadsheet run the cell as a formula.
+        const cell = (v) => {
+          let s = String(v ?? "");
+          if (/^[=+\-@]/.test(s)) s = "'" + s;
+          return '"' + s.replace(/"/g, '""') + '"';
+        };
+        const rows = [["Data", "Nome", "Azienda", "Email", "Telefono", "Esigenza", "Pagina", "Stato invio"]].concat(
+          currentLeads.map((l) => [l.created_at, l.name, l.company, l.email, l.phone, l.note, l.page_url, l.delivery_status])
+        );
+        const csv = "﻿" + rows.map((r) => r.map(cell).join(";")).join("\r\n");
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        link.download = `contatti-${editingConfigId}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
       // Interactive UI in the modern preview (same bundle as the widget).
       function mountPreviewInteractive(bubble, text) {
         if (!window.ClippyUI || !document.getElementById("generativeUi")?.checked) return false;
         const mounted = window.ClippyUI.mount(bubble, text, {
           accent: document.getElementById("accentColor").value,
           dark: document.getElementById("darkMode").checked,
+          lead: previewLeadOptions(),
           onMessage: (message) => {
             const input = document.getElementById("modernPreviewInput");
             if (!input || input.disabled || isProcessing) return;
@@ -3735,6 +4083,11 @@ Examples:
         if (!input) return;
         const message = input.value.trim();
         if ((!message && modernAttachments.length === 0) || isProcessing) return;
+        if (previewPrivacy() && !previewConsentAccepted) {
+          await loadPrivacyDefaults();
+          showPreviewPrivacy();
+          return;
+        }
 
         const providerSelect = document.getElementById("providerSelect");
         const modelSelect = document.getElementById("modelSelect");
@@ -3772,6 +4125,7 @@ Examples:
               body: JSON.stringify({
                 config_id: editingConfigId,
                 messages: conversationHistory,
+                consent_id: previewConsentId,
               }),
             });
             if (!response.ok) throw new Error(await response.text());
@@ -3797,6 +4151,7 @@ Examples:
                   document.getElementById("webSearchEnabled")?.checked || false,
                 generative_ui:
                   document.getElementById("generativeUi")?.checked || false,
+                lead_form: !!document.getElementById("leadEmails")?.value.trim(),
               }),
             });
             if (!response.ok) throw new Error(await response.text());
@@ -3942,6 +4297,12 @@ Examples:
             web_search_enabled:
               document.getElementById("webSearchEnabled").checked,
             generative_ui: document.getElementById("generativeUi").checked,
+            privacy_enabled: document.getElementById("privacyEnabled").checked,
+            privacy_text: document.getElementById("privacyText").value.trim() || null,
+            privacy_policy_url: document.getElementById("privacyPolicyUrl").value.trim() || null,
+            privacy_button_label: document.getElementById("privacyButtonLabel").value.trim() || null,
+            lead_emails: document.getElementById("leadEmails").value.trim() || null,
+            lead_consent_text: document.getElementById("leadConsentText").value.trim() || null,
             max_messages_per_conversation:
               parseInt(document.getElementById("maxMessages").value, 10) || 0,
           };
@@ -4112,6 +4473,14 @@ Examples:
           document.getElementById("webSearchEnabled").checked =
             !!config.web_search_enabled;
           document.getElementById("generativeUi").checked = !!config.generative_ui;
+          document.getElementById("privacyEnabled").checked = !!config.privacy_enabled;
+          document.getElementById("privacyText").value = config.privacy_text || "";
+          document.getElementById("privacyPolicyUrl").value = config.privacy_policy_url || "";
+          document.getElementById("privacyButtonLabel").value = config.privacy_button_label || "";
+          document.getElementById("leadEmails").value = config.lead_emails || "";
+          document.getElementById("leadConsentText").value = config.lead_consent_text || "";
+          previewConsentAccepted = false;
+          previewConsentId = null;
           document.getElementById("maxMessages").value =
             config.max_messages_per_conversation || 0;
           document.getElementById("maxTokens").value =

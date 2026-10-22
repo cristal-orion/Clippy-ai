@@ -1,6 +1,7 @@
 // Builds the widget's interactive-UI bundle and the matching system prompt:
 //   out/clippy-ui.js        → served as /static/clippy-ui.js
-//   out/openui_prompt.txt   → read by main.py for bots with generative UI
+//   out/openui_prompt.txt        → read by the backend for bots with generative UI
+//   out/openui_prompt_leads.txt  → the same plus LeadForm, for bots with lead recipients
 import * as esbuild from "esbuild";
 import { mkdirSync, writeFileSync, statSync } from "node:fs";
 import { gzipSync } from "node:zlib";
@@ -33,10 +34,10 @@ await esbuild.build({
   format: "esm",
   platform: "node",
 });
-const { buildPrompt } = await import(new URL("./out/prompt.mjs", import.meta.url));
-writeFileSync("out/openui_prompt.txt", buildPrompt());
+const { buildPrompts } = await import(new URL("./out/prompt.mjs", import.meta.url));
+for (const [name, text] of Object.entries(buildPrompts())) writeFileSync(`out/${name}`, text);
 
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
 const js = readFileSync("out/clippy-ui.js");
 console.log(`clippy-ui.js: ${kb(statSync("out/clippy-ui.js").size)} (${kb(gzipSync(js).length)} gzip)`);
-console.log(`openui_prompt.txt: ${statSync("out/openui_prompt.txt").size} chars`);
+for (const name of ["openui_prompt.txt", "openui_prompt_leads.txt"]) console.log(`${name}: ${statSync(`out/${name}`).size} chars`);

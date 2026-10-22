@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py ./
 COPY static/ ./static/
 COPY --from=ui /ui/out/clippy-ui.js ./static/clippy-ui.js
-COPY --from=ui /ui/out/openui_prompt.txt ./openui_prompt.txt
+COPY --from=ui /ui/out/openui_prompt.txt /ui/out/openui_prompt_leads.txt ./
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data

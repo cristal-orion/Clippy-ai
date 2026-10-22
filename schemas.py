@@ -2,9 +2,41 @@
 Pydantic schemas for request/response validation
 """
 
+import re
+
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List, Union, Dict, Any
 from datetime import datetime
+
+MAX_LEAD_EMAILS = 3
+_EMAIL_RE = re.compile(r"^[^\s@,;:<>\"']+@[^\s@,;:<>\"']+\.[^\s@,;:<>\"']{2,}$")
+
+
+def normalise_lead_emails(value: Optional[str]) -> Optional[str]:
+    """'a@x.it; b@y.it' -> 'a@x.it, b@y.it'. Up to 3 valid, distinct addresses."""
+    if value is None:
+        return None
+    emails = []
+    for part in re.split(r"[,;\s]+", value.strip()):
+        if not part:
+            continue
+        if not _EMAIL_RE.match(part) or len(part) > 320:
+            raise ValueError(f"indirizzo email non valido: {part}")
+        if part.lower() not in (e.lower() for e in emails):
+            emails.append(part)
+    if len(emails) > MAX_LEAD_EMAILS:
+        raise ValueError(f"al massimo {MAX_LEAD_EMAILS} indirizzi email")
+    return ", ".join(emails) or None
+
+
+def normalise_http_url(value: Optional[str]) -> Optional[str]:
+    """An absolute http(s) URL, or None when empty."""
+    if value is None or not value.strip():
+        return None
+    value = value.strip()
+    if not re.match(r"^https?://[^\s/$.?#][^\s]*$", value, re.I) or len(value) > 500:
+        raise ValueError("deve essere un indirizzo completo che inizia con https://")
+    return value
 
 # ============ User Schemas ============
 
@@ -63,6 +95,15 @@ class ClippyConfigBase(BaseModel):
     web_search_enabled: Optional[bool] = False
     max_messages_per_conversation: Optional[int] = Field(default=0, ge=0, le=1000)
     generative_ui: Optional[bool] = False
+    privacy_enabled: Optional[bool] = False
+    privacy_text: Optional[str] = Field(default=None, max_length=3000)
+    privacy_policy_url: Optional[str] = None
+    privacy_button_label: Optional[str] = Field(default=None, max_length=80)
+    lead_emails: Optional[str] = None
+    lead_consent_text: Optional[str] = Field(default=None, max_length=1000)
+
+    _lead_emails = validator("lead_emails", allow_reuse=True)(normalise_lead_emails)
+    _policy_url = validator("privacy_policy_url", allow_reuse=True)(normalise_http_url)
 
 class ClippyConfigCreate(ClippyConfigBase):
     """Schema for creating a Clippy configuration"""
@@ -88,6 +129,15 @@ class ClippyConfigUpdate(BaseModel):
     web_search_enabled: Optional[bool] = None
     max_messages_per_conversation: Optional[int] = Field(None, ge=0, le=1000)
     generative_ui: Optional[bool] = None
+    privacy_enabled: Optional[bool] = None
+    privacy_text: Optional[str] = Field(None, max_length=3000)
+    privacy_policy_url: Optional[str] = None
+    privacy_button_label: Optional[str] = Field(None, max_length=80)
+    lead_emails: Optional[str] = None
+    lead_consent_text: Optional[str] = Field(None, max_length=1000)
+
+    _lead_emails = validator("lead_emails", allow_reuse=True)(normalise_lead_emails)
+    _policy_url = validator("privacy_policy_url", allow_reuse=True)(normalise_http_url)
 
 class ClippyConfigResponse(BaseModel):
     """Schema for Clippy configuration response (no API key)"""
@@ -110,6 +160,12 @@ class ClippyConfigResponse(BaseModel):
     web_search_enabled: Optional[bool]
     max_messages_per_conversation: Optional[int]
     generative_ui: Optional[bool]
+    privacy_enabled: Optional[bool]
+    privacy_text: Optional[str]
+    privacy_policy_url: Optional[str]
+    privacy_button_label: Optional[str]
+    lead_emails: Optional[str]
+    lead_consent_text: Optional[str]
     usage_count: int
     created_at: datetime
     updated_at: Optional[datetime]
@@ -142,6 +198,7 @@ class WidgetChatRequest(BaseModel):
     """Schema for widget chat request (uses config_id)"""
     config_id: str
     messages: List[ChatMessage]
+    consent_id: Optional[str] = None  # required when the bot asks for privacy consent
 
 class ChatResponse(BaseModel):
     """Schema for chat response"""

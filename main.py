@@ -33,6 +33,11 @@ from auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_active_user
 )
+from openui import OPENUI_PROMPT, generative_ui_on, leads_on, openui_prompt
+from leads import (
+    router as leads_router, consent_valid, delete_bot_data, get_client_ip,
+    widget_leads, widget_privacy,
+)
 
 # Encryption key (in production, load from environment)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key())
@@ -70,6 +75,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Privacy notice, consent records and leads
+app.include_router(leads_router)
 
 # ============ Configuration ============
 DEFAULT_PROVIDER = os.getenv("DEFAULT_PROVIDER", "groq")
@@ -116,22 +124,6 @@ NO_DEFERRAL_INSTRUCTION = (
     "web search, etc.), perform it immediately and present the complete result in "
     "this same message — never announce an action you are not finishing here."
 )
-
-# Interactive UI (OpenUI): the system-prompt section that teaches the model the
-# component language rendered by static/clippy-ui.js. Both are built from ui/
-# (npm run build). Without the prompt file the option is ignored and replies
-# stay plain text.
-_OPENUI_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openui_prompt.txt")
-try:
-    with open(_OPENUI_PROMPT_PATH, encoding="utf-8") as _f:
-        OPENUI_PROMPT = "\n\n" + _f.read().strip()
-except OSError:
-    OPENUI_PROMPT = ""
-
-
-def generative_ui_on(config) -> bool:
-    """Interactive UI applies to modern-mode bots that opted in, when it's built."""
-    return bool(OPENUI_PROMPT) and bool(config.generative_ui) and (config.ui_mode or "classic") == "modern"
 
 # ============ Helper Functions ============
 
@@ -504,6 +496,12 @@ async def create_config(
         web_search_enabled=config_data.web_search_enabled,
         max_messages_per_conversation=config_data.max_messages_per_conversation,
         generative_ui=config_data.generative_ui,
+        privacy_enabled=config_data.privacy_enabled,
+        privacy_text=config_data.privacy_text,
+        privacy_policy_url=config_data.privacy_policy_url,
+        privacy_button_label=config_data.privacy_button_label,
+        lead_emails=config_data.lead_emails,
+        lead_consent_text=config_data.lead_consent_text,
         allowed_domains=allowed_domains_json,
         user_id=current_user.id
     )
@@ -612,6 +610,7 @@ async def delete_config(
             detail="Configuration not found"
         )
 
+    delete_bot_data(db, config)
     db.delete(config)
     db.commit()
 
@@ -654,7 +653,6 @@ async def widget_get_config(config_id: str, req: Request, db: Session = Depends(
             "agent": config.agent,
             "provider": config.provider,
             "model": config.model,
-            "system_prompt": config.system_prompt,
             "welcome_message": config.welcome_message,
             "temperature": config.temperature,
             "max_tokens": config.max_tokens,
@@ -664,6 +662,8 @@ async def widget_get_config(config_id: str, req: Request, db: Session = Depends(
             "max_messages_per_conversation": config.max_messages_per_conversation or 0,
             "generative_ui": generative_ui_on(config),
             "ui_bundle": ui_bundle_path() if generative_ui_on(config) else "",
+            "privacy": widget_privacy(config),
+            "leads": widget_leads(config),
         }
     }
 
@@ -730,6 +730,7 @@ async def preview_chat(
     max_tokens = body.get("max_tokens", 1200)
     web_search = bool(body.get("web_search_enabled"))
     generative_ui = bool(body.get("generative_ui")) and bool(OPENUI_PROMPT)
+    lead_form = bool(body.get("lead_form"))
 
     if not provider or not model or not api_key:
         raise HTTPException(
@@ -749,7 +750,7 @@ async def preview_chat(
 
     # Interactive UI: the reply is an OpenUI Lang program the preview renders.
     if generative_ui:
-        system_prompt = system_prompt + OPENUI_PROMPT
+        system_prompt = system_prompt + openui_prompt(lead_form)
 
     # Build messages: optional system prompt + normalized history
     messages = []
@@ -808,7 +809,7 @@ async def widget_chat(
     NO AUTHENTICATION REQUIRED (public endpoint for widgets)
     """
     # Rate limiting
-    client_ip = req.client.host
+    client_ip = get_client_ip(req)
     if not check_rate_limit(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -823,6 +824,10 @@ async def widget_chat(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Configuration not found"
         )
+
+    # Privacy notice: the visitor must have accepted the bot's current text.
+    if config.privacy_enabled and not consent_valid(db, config, request.consent_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="consent_required")
 
     # Per-conversation message cap (server-side gate, "a monte").
     # The widget resends the full history each turn, so the user-message count
@@ -864,7 +869,7 @@ async def widget_chat(
 
     # Interactive UI: the reply is an OpenUI Lang program the widget renders.
     if generative_ui_on(config):
-        system_prompt += OPENUI_PROMPT
+        system_prompt += openui_prompt(leads_on(config))
 
     # Add animation instructions — classic (ClippyJS) mode only.
     # In modern mode this suffix would leak as literal text in the chat bubble.
@@ -918,9 +923,12 @@ Choose animations based on context: Wave (greeting), Explain (help), Thinking (a
         }
 
     except Exception as e:
+        # Visitors get a generic message: provider errors can name the account,
+        # the model or quotas. The owner finds the details in the logs.
+        print(f"⚠️ widget_chat {config.config_id}: {type(e).__name__}: {str(e)[:500]}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AI Error: {str(e)}"
+            detail="AI service temporarily unavailable"
         )
 
 # ============ URL Scraping + AI Refinement ============

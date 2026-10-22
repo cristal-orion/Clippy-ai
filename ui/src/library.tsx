@@ -8,6 +8,7 @@ import {
   useTriggerAction,
   type PromptOptions,
 } from "@openuidev/react-lang";
+import { createContext, useContext, useState, type FormEvent } from "react";
 import { z } from "zod/v4";
 import { inline, webUrl } from "./inline";
 
@@ -223,14 +224,138 @@ const Divider = defineComponent({
   component: () => <hr className="cui-divider" />,
 });
 
-export const library = createLibrary({
+// ── Lead form ──────────────────────────────────────────────────────────────
+
+export type LeadValues = {
+  nome: string;
+  azienda: string;
+  email: string;
+  telefono: string;
+  note: string;
+  consenso: boolean;
+  website: string; // honeypot
+};
+
+export type LeadOptions = {
+  consentText: string;
+  policyUrl?: string;
+  submit: (values: LeadValues) => Promise<{ ok: boolean; error?: string }>;
+};
+
+/** Provided by the widget: where the form goes and what the visitor agrees to. */
+export const LeadContext = createContext<LeadOptions | null>(null);
+
+const EMAIL = /^[^\s@,;:<>"']+@[^\s@,;:<>"']+\.[^\s@,;:<>"']{2,}$/;
+
+function LeadFormView({ title, note, company }: { title?: string; note?: string; company?: string }) {
+  const lead = useContext(LeadContext);
+  const [values, setValues] = useState<LeadValues>({
+    nome: "", azienda: company ?? "", email: "", telefono: "", note: note ?? "", consenso: false, website: "",
+  });
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [error, setError] = useState("");
+  const set = (key: keyof LeadValues) => (e: { target: { value: string; checked?: boolean; type?: string } }) =>
+    setValues((v) => ({ ...v, [key]: e.target.type === "checkbox" ? !!e.target.checked : e.target.value }));
+
+  if (!lead) return <p className="cui-text cui-text-sm cui-muted">Il modulo contatti non è disponibile in questa chat.</p>;
+  if (state === "sent") {
+    return (
+      <div className="cui-card cui-form-done" role="status">
+        <div className="cui-title cui-title-sm">✅ Richiesta inviata</div>
+        <p className="cui-text cui-text-sm">Grazie{values.nome ? `, ${values.nome.split(" ")[0]}` : ""}! Ti ricontatteremo al più presto.</p>
+      </div>
+    );
+  }
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (values.nome.trim().length < 2) return setError("Inserisci nome e cognome.");
+    if (!EMAIL.test(values.email.trim())) return setError("Controlla l'indirizzo email.");
+    if (!values.consenso) return setError("Per inviare la richiesta serve il consenso al trattamento dei dati.");
+    setError("");
+    setState("sending");
+    const result = await lead.submit(values).catch(() => ({ ok: false, error: "Invio non riuscito, riprova." }));
+    if (result.ok) setState("sent");
+    else {
+      setState("idle");
+      setError(result.error || "Invio non riuscito, riprova.");
+    }
+  };
+
+  const sending = state === "sending";
+  const policy = webUrl(lead.policyUrl);
+  return (
+    <form className="cui-card cui-form" onSubmit={onSubmit} noValidate>
+      {title ? <div className="cui-title cui-title-sm">{title}</div> : null}
+      <label className="cui-field">
+        <span>Nome e cognome *</span>
+        <input type="text" autoComplete="name" value={values.nome} onChange={set("nome")} disabled={sending} required />
+      </label>
+      <label className="cui-field">
+        <span>Azienda</span>
+        <input type="text" autoComplete="organization" value={values.azienda} onChange={set("azienda")} disabled={sending} />
+      </label>
+      <div className="cui-row cui-fields">
+        <label className="cui-field">
+          <span>Email *</span>
+          <input type="email" autoComplete="email" value={values.email} onChange={set("email")} disabled={sending} required />
+        </label>
+        <label className="cui-field">
+          <span>Telefono</span>
+          <input type="tel" autoComplete="tel" value={values.telefono} onChange={set("telefono")} disabled={sending} />
+        </label>
+      </div>
+      <label className="cui-field">
+        <span>Di cosa hai bisogno</span>
+        <textarea rows={3} value={values.note} onChange={set("note")} disabled={sending} />
+      </label>
+      <label className="cui-hp" aria-hidden="true">
+        Sito web <input type="text" tabIndex={-1} autoComplete="off" value={values.website} onChange={set("website")} />
+      </label>
+      <label className="cui-consent">
+        <input type="checkbox" checked={values.consenso} onChange={set("consenso")} disabled={sending} />
+        <span>
+          {inline(lead.consentText)} *
+          {policy ? (
+            <>
+              {" "}
+              <a href={policy} target="_blank" rel="noopener noreferrer">Informativa privacy</a>
+            </>
+          ) : null}
+        </span>
+      </label>
+      {error ? <p className="cui-form-error" role="alert">{error}</p> : null}
+      <div className="cui-row">
+        <button type="submit" className="cui-button cui-button-primary" disabled={sending}>
+          {sending ? "Invio in corso…" : "Invia richiesta"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const LeadForm = defineComponent({
+  name: "LeadForm",
+  props: z.object({ title: z.string().optional(), note: z.string().optional(), company: z.string().optional() }),
+  description:
+    "The contact form: name, company, email, phone, a note and the privacy consent. note pre-fills a short summary of what the user needs; company pre-fills their company if known.",
+  component: ({ props }) => <LeadFormView title={props.title} note={props.note} company={props.company} />,
+});
+
+const baseComponents = [Col, Row, Card, Divider, Title, Text, List, ListItem, Badge, Stat, Link, Table, Button];
+const baseGroups = [
+  { name: "Layout", components: ["Col", "Row", "Card", "Divider"] },
+  { name: "Text", components: ["Title", "Text", "List", "ListItem", "Badge", "Stat", "Link"] },
+  { name: "Data and actions", components: ["Table", "Button"] },
+];
+
+export const library = createLibrary({ root: "Col", components: baseComponents, componentGroups: baseGroups });
+
+/** Bots that collect leads: the same components plus LeadForm. The widget renders with this one. */
+export const leadLibrary = createLibrary({
   root: "Col",
-  components: [Col, Row, Card, Divider, Title, Text, List, ListItem, Badge, Stat, Link, Table, Button],
-  componentGroups: [
-    { name: "Layout", components: ["Col", "Row", "Card", "Divider"] },
-    { name: "Text", components: ["Title", "Text", "List", "ListItem", "Badge", "Stat", "Link"] },
-    { name: "Data and actions", components: ["Table", "Button"] },
-  ],
+  components: [...baseComponents, LeadForm],
+  componentGroups: [...baseGroups, { name: "Contact", components: ["LeadForm"] }],
 });
 
 const exampleCompare = `root = Col([intro, table, note, next])
@@ -246,6 +371,10 @@ c2 = Card([Row([Title("Contabilità di base", "sm"), Badge("Ultimi posti", "warn
 next = Row([Button("Mi interessa Excel avanzato"), Button("Vorrei parlare con un consulente", @ToAssistant("Vorrei parlare con un consulente"), "secondary")])`;
 
 const exampleChat = `root = Col([Text("Certo! Per aiutarti meglio: in quale **regione** ha sede la tua azienda?")])`;
+
+const exampleLead = `root = Col([intro, form])
+intro = Text("Perfetto! Lasciami i tuoi recapiti e un consulente ti ricontatterà per la **consulenza gratuita**.")
+form = LeadForm("Richiedi la consulenza gratuita", "Interesse per il piano Team per 4 persone, con avvio previsto a gennaio.", "Studio Bianchi")`;
 
 /** Appended to a bot's own instructions when its interactive UI is on. */
 export const promptOptions: PromptOptions = {
@@ -268,5 +397,20 @@ export const promptOptions: PromptOptions = {
     `Example 1: Comparing options with a Table and next steps:\n\n${exampleCompare}`,
     `Example 2: A few options as Cards with facts, a source link and next steps:\n\n${exampleCards}`,
     `Example 3: A simple conversational reply:\n\n${exampleChat}`,
+  ],
+};
+
+/** For bots with lead recipients: the contact form replaces asking for details in chat. */
+export const leadPromptOptions: PromptOptions = {
+  ...promptOptions,
+  additionalRules: [
+    ...(promptOptions.additionalRules ?? []),
+    "LeadForm is the only way to collect contact details. When the user wants to be contacted, book a call or a free consultation, or your instructions say to collect name, email or phone, show LeadForm instead: never ask for name, email or phone in the chat, not even one at a time.",
+    "Pre-fill LeadForm's note with a one- or two-sentence summary of what the user needs (goal, budget, place, options that interested them), written as the user would, and company if you know it. Put a short Text before it.",
+    "At most one LeadForm per reply. Once the conversation says the form was sent, don't show it again unless the user asks.",
+  ],
+  examples: [
+    ...(promptOptions.examples ?? []),
+    `Example 4: The user asks to be contacted:\n\n${exampleLead}`,
   ],
 };

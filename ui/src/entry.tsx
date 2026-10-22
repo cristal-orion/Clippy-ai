@@ -2,7 +2,7 @@ import { Renderer, type ActionEvent, type ParseResult } from "@openuidev/react-l
 import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { webUrl } from "./inline";
-import { library } from "./library";
+import { LeadContext, leadLibrary, type LeadOptions } from "./library";
 import css from "./styles.css";
 
 type MountOptions = {
@@ -13,6 +13,8 @@ type MountOptions = {
   onMessage?: (text: string) => void;
   /** The reply could not be rendered as UI; show it as plain text instead. */
   onFallback?: () => void;
+  /** Lead form settings; without them LeadForm says the form is unavailable. */
+  lead?: LeadOptions;
 };
 
 function injectStyles() {
@@ -90,7 +92,9 @@ function mount(el: HTMLElement, text: string, options: MountOptions = {}): boole
 
   root.render(
     <Boundary onError={fail}>
-      <Renderer response={program} library={library} isStreaming={false} onAction={onAction} onParseResult={onParseResult} onError={() => {}} />
+      <LeadContext.Provider value={options.lead ?? null}>
+        <Renderer response={program} library={leadLibrary} isStreaming={false} onAction={onAction} onParseResult={onParseResult} onError={() => {}} />
+      </LeadContext.Provider>
     </Boundary>,
   );
   return true;

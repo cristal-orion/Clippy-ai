@@ -60,6 +60,12 @@ def ensure_columns():
         "web_search_enabled": "BOOLEAN DEFAULT 0",
         "max_messages_per_conversation": "INTEGER DEFAULT 0",
         "generative_ui": "BOOLEAN DEFAULT 0",
+        "privacy_enabled": "BOOLEAN DEFAULT 0",
+        "privacy_text": "TEXT",
+        "privacy_policy_url": "VARCHAR(500)",
+        "privacy_button_label": "VARCHAR(80)",
+        "lead_emails": "TEXT",
+        "lead_consent_text": "TEXT",
     }
     with engine.begin() as conn:
         for col, ddl in additions.items():
