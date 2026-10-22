@@ -16,6 +16,7 @@
   let config = null;
   let conversationHistory = [];
   let isProcessing = false;
+  let uiReady = null; // Promise<boolean>: interactive-UI bundle loaded
 
   // Detect backend URL from script source
   function detectBackendUrl() {
@@ -764,6 +765,7 @@
         align-self: flex-start; background: var(--cm-assistant-bg); color: var(--cm-text);
         border-bottom-left-radius: 4px;
       }
+      .cm-bubble.cm-ui { max-width: 100%; width: 100%; overflow-wrap: normal; }
       .cm-bubble code {
         background: rgba(127,127,127,0.18); padding: 1px 5px; border-radius: 4px; font-size: 0.9em;
       }
@@ -965,11 +967,73 @@
         bubble.appendChild(att);
       }
     } else {
-      bubble.innerHTML = formatMarkdown(text);
+      renderAssistantContent(bubble, text);
     }
     list.appendChild(bubble);
     list.scrollTop = list.scrollHeight;
     return bubble;
+  }
+
+  // ---- Interactive UI (OpenUI) — only for bots with generative_ui ----
+
+  // Load the UI bundle once; resolves false if it can't be loaded, in which
+  // case replies are shown as text as before.
+  function loadInteractiveUi() {
+    if (!config || !config.generative_ui || !config.ui_bundle) return null;
+    if (window.ClippyUI) return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      const script = document.createElement("script");
+      script.src = BACKEND_URL + config.ui_bundle;
+      script.async = true;
+      script.onload = function () { resolve(!!window.ClippyUI); };
+      script.onerror = function () {
+        console.warn("Clippy Widget: interactive UI unavailable, using text");
+        resolve(false);
+      };
+      setTimeout(function () { resolve(!!window.ClippyUI); }, 15000);
+      document.head.appendChild(script);
+    });
+  }
+
+  // Render a reply as interactive UI; false when it is plain text.
+  function mountInteractive(bubble, text) {
+    if (!window.ClippyUI) return false;
+    bubble.innerHTML = "";
+    const mounted = window.ClippyUI.mount(bubble, text, {
+      accent: config.accent_color,
+      dark: !!config.dark_mode,
+      onMessage: sendQuickMessage,
+      onFallback: function () {
+        bubble.classList.remove("cm-ui");
+        bubble.innerHTML = formatMarkdown(text);
+      },
+    });
+    if (mounted) bubble.classList.add("cm-ui");
+    return mounted;
+  }
+
+  function renderAssistantContent(bubble, text) {
+    if (uiReady && config && config.generative_ui) {
+      if (window.ClippyUI) {
+        if (mountInteractive(bubble, text)) return;
+      } else {
+        // Bundle still loading: wait for it instead of flashing the raw program.
+        bubble.textContent = "…";
+        uiReady.then(function () {
+          if (!mountInteractive(bubble, text)) bubble.innerHTML = formatMarkdown(text);
+        });
+        return;
+      }
+    }
+    bubble.innerHTML = formatMarkdown(text);
+  }
+
+  // A button in an interactive reply sends its message as if the user typed it.
+  function sendQuickMessage(text) {
+    const input = document.getElementById("clippy-modern-input");
+    if (!input || input.disabled || isProcessing) return;
+    input.value = text;
+    sendMessageModern();
   }
 
   // Append a small centered notice (e.g. limit reached)
@@ -1098,6 +1162,7 @@
     // Modern mode: skip jQuery/ClippyJS entirely, render a clean chat widget.
     if (config.ui_mode === "modern") {
       console.log("Clippy Widget: Modern UI mode");
+      uiReady = loadInteractiveUi();
       initModern();
       return;
     }

@@ -54,6 +54,7 @@ class ClippyConfig(Base):
     dark_mode = Column(Boolean, default=False)
     web_search_enabled = Column(Boolean, default=False)
     max_messages_per_conversation = Column(Integer, default=0)  # 0 = unlimited
+    generative_ui = Column(Boolean, default=False)  # replies rendered as interactive UI (modern mode)
 
     # Security
     allowed_domains = Column(Text, nullable=True)  # JSON array of allowed domains

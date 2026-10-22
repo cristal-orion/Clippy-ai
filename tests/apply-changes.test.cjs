@@ -13,7 +13,7 @@ function editor({ editing = true, authenticated = true, failSave = false } = {})
     modelSelect: "gpt-4o", customModel: "", apiKey: "", systemPromptEditor: "",
     welcomeMessageEditor: "", ragContentArea: "", uiModeSelect: "classic",
     accentColor: "#4f46e5", maxMessages: "40", maxTokens: "1200", temperature: "0",
-    darkMode: "", webSearchEnabled: "", providerInfo: "", apiKeyInfo: "",
+    darkMode: "", webSearchEnabled: "", generativeUi: "", providerInfo: "", apiKeyInfo: "",
     configIdDisplay: "", embedCode: "", embedOutput: "",
   })) fields[id] = { value, checked: false, style: {} };
   fields.animationGrid = { appendChild() {} };

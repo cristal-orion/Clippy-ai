@@ -59,6 +59,7 @@ def ensure_columns():
         "dark_mode": "BOOLEAN DEFAULT 0",
         "web_search_enabled": "BOOLEAN DEFAULT 0",
         "max_messages_per_conversation": "INTEGER DEFAULT 0",
+        "generative_ui": "BOOLEAN DEFAULT 0",
     }
     with engine.begin() as conn:
         for col, ddl in additions.items():

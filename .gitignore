@@ -47,3 +47,7 @@ runtime.txt
 config-dashboard.html
 SECURITY-ARCHITECTURE.md
 
+
+# Interactive UI build
+ui/node_modules/
+ui/out/

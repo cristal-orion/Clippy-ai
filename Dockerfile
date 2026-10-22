@@ -1,5 +1,14 @@
 # Clippy AI Backend v2.0 - Docker Image with Authentication & Database
 
+# Interactive UI (OpenUI): builds static/clippy-ui.js and openui_prompt.txt
+FROM node:22-slim AS ui
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY ui/build.mjs ./
+COPY ui/src ./src
+RUN npm run build
+
 FROM python:3.11-slim
 
 # Set working directory
@@ -12,6 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY *.py ./
 COPY static/ ./static/
+COPY --from=ui /ui/out/clippy-ui.js ./static/clippy-ui.js
+COPY --from=ui /ui/out/openui_prompt.txt ./openui_prompt.txt
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data

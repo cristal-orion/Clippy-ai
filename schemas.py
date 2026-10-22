@@ -62,6 +62,7 @@ class ClippyConfigBase(BaseModel):
     dark_mode: Optional[bool] = False
     web_search_enabled: Optional[bool] = False
     max_messages_per_conversation: Optional[int] = Field(default=0, ge=0, le=1000)
+    generative_ui: Optional[bool] = False
 
 class ClippyConfigCreate(ClippyConfigBase):
     """Schema for creating a Clippy configuration"""
@@ -86,6 +87,7 @@ class ClippyConfigUpdate(BaseModel):
     dark_mode: Optional[bool] = None
     web_search_enabled: Optional[bool] = None
     max_messages_per_conversation: Optional[int] = Field(None, ge=0, le=1000)
+    generative_ui: Optional[bool] = None
 
 class ClippyConfigResponse(BaseModel):
     """Schema for Clippy configuration response (no API key)"""
@@ -107,6 +109,7 @@ class ClippyConfigResponse(BaseModel):
     dark_mode: Optional[bool]
     web_search_enabled: Optional[bool]
     max_messages_per_conversation: Optional[int]
+    generative_ui: Optional[bool]
     usage_count: int
     created_at: datetime
     updated_at: Optional[datetime]

@@ -117,6 +117,22 @@ NO_DEFERRAL_INSTRUCTION = (
     "this same message — never announce an action you are not finishing here."
 )
 
+# Interactive UI (OpenUI): the system-prompt section that teaches the model the
+# component language rendered by static/clippy-ui.js. Both are built from ui/
+# (npm run build). Without the prompt file the option is ignored and replies
+# stay plain text.
+_OPENUI_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openui_prompt.txt")
+try:
+    with open(_OPENUI_PROMPT_PATH, encoding="utf-8") as _f:
+        OPENUI_PROMPT = "\n\n" + _f.read().strip()
+except OSError:
+    OPENUI_PROMPT = ""
+
+
+def generative_ui_on(config) -> bool:
+    """Interactive UI applies to modern-mode bots that opted in, when it's built."""
+    return bool(OPENUI_PROMPT) and bool(config.generative_ui) and (config.ui_mode or "classic") == "modern"
+
 # ============ Helper Functions ============
 
 def encrypt_api_key(api_key: str) -> str:
@@ -359,6 +375,11 @@ async def serve_embed_js():
         }
     )
 
+def ui_bundle_path() -> str:
+    """Path of the interactive-UI bundle, versioned so browsers fetch rebuilds."""
+    bundle = static_dir / "clippy-ui.js"
+    return f"/static/clippy-ui.js?v={int(bundle.stat().st_mtime)}" if bundle.exists() else ""
+
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
@@ -482,6 +503,7 @@ async def create_config(
         dark_mode=config_data.dark_mode,
         web_search_enabled=config_data.web_search_enabled,
         max_messages_per_conversation=config_data.max_messages_per_conversation,
+        generative_ui=config_data.generative_ui,
         allowed_domains=allowed_domains_json,
         user_id=current_user.id
     )
@@ -640,6 +662,8 @@ async def widget_get_config(config_id: str, req: Request, db: Session = Depends(
             "accent_color": config.accent_color or "#4f46e5",
             "dark_mode": bool(config.dark_mode),
             "max_messages_per_conversation": config.max_messages_per_conversation or 0,
+            "generative_ui": generative_ui_on(config),
+            "ui_bundle": ui_bundle_path() if generative_ui_on(config) else "",
         }
     }
 
@@ -705,6 +729,7 @@ async def preview_chat(
     temperature = body.get("temperature", 0.8)
     max_tokens = body.get("max_tokens", 1200)
     web_search = bool(body.get("web_search_enabled"))
+    generative_ui = bool(body.get("generative_ui")) and bool(OPENUI_PROMPT)
 
     if not provider or not model or not api_key:
         raise HTTPException(
@@ -721,6 +746,10 @@ async def preview_chat(
     web_search_active = web_search and provider in WEB_SEARCH_PROVIDERS
     if web_search_active:
         system_prompt = system_prompt + WEB_SEARCH_INSTRUCTION
+
+    # Interactive UI: the reply is an OpenUI Lang program the preview renders.
+    if generative_ui:
+        system_prompt = system_prompt + OPENUI_PROMPT
 
     # Build messages: optional system prompt + normalized history
     messages = []
@@ -832,6 +861,10 @@ async def widget_chat(
     web_search_active = bool(config.web_search_enabled) and config.provider in WEB_SEARCH_PROVIDERS
     if web_search_active:
         system_prompt += WEB_SEARCH_INSTRUCTION
+
+    # Interactive UI: the reply is an OpenUI Lang program the widget renders.
+    if generative_ui_on(config):
+        system_prompt += OPENUI_PROMPT
 
     # Add animation instructions — classic (ClippyJS) mode only.
     # In modern mode this suffix would leak as literal text in the chat bubble.

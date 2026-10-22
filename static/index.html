@@ -1570,6 +1570,22 @@
             />
             <span>🌙 Dark mode</span>
           </label>
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-top: 10px;
+              cursor: pointer;
+            "
+          >
+            <input type="checkbox" id="generativeUi" />
+            <span>✨ Interactive UI (beta)</span>
+          </label>
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
+            Replies become tables, cards and buttons instead of plain text.
+            Adds about 2,000 tokens to every message.
+          </p>
         </div>
 
         <!-- Character (only shown in classic mode) -->
@@ -2014,6 +2030,7 @@ Loading...
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/static/clippy.js"></script>
+    <script src="/static/clippy-ui.js" defer></script>
 
     <script>
       // Configura il percorso per gli assets (funziona sia in locale che su server)
@@ -3520,6 +3537,7 @@ Examples:
           #modernPreviewRoot .mp-assistant {
             align-self: flex-start; background: var(--mp-assistant-bg); color: var(--mp-text); border-bottom-left-radius: 4px;
           }
+          #modernPreviewRoot .mp-ui { max-width: 100%; width: 100%; overflow-wrap: normal; }
           #modernPreviewRoot .mp-atts { font-size: 12px; opacity: 0.85; margin-top: 4px; }
           #modernPreviewRoot .mp-input-row {
             display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--mp-border); align-items: center;
@@ -3656,12 +3674,33 @@ Examples:
               .join("  ");
             bubble.appendChild(att);
           }
-        } else {
+        } else if (!mountPreviewInteractive(bubble, text)) {
           bubble.innerHTML = parseMarkdown(text);
         }
         list.appendChild(bubble);
         list.scrollTop = list.scrollHeight;
         return bubble;
+      }
+
+      // Interactive UI in the modern preview (same bundle as the widget).
+      function mountPreviewInteractive(bubble, text) {
+        if (!window.ClippyUI || !document.getElementById("generativeUi")?.checked) return false;
+        const mounted = window.ClippyUI.mount(bubble, text, {
+          accent: document.getElementById("accentColor").value,
+          dark: document.getElementById("darkMode").checked,
+          onMessage: (message) => {
+            const input = document.getElementById("modernPreviewInput");
+            if (!input || input.disabled || isProcessing) return;
+            input.value = message;
+            sendModernPreviewMessage();
+          },
+          onFallback: () => {
+            bubble.classList.remove("mp-ui");
+            bubble.innerHTML = parseMarkdown(text);
+          },
+        });
+        if (mounted) bubble.classList.add("mp-ui");
+        return mounted;
       }
 
       function showModernPreviewTyping() {
@@ -3756,6 +3795,8 @@ Examples:
                 ...getGenParams(),
                 web_search_enabled:
                   document.getElementById("webSearchEnabled")?.checked || false,
+                generative_ui:
+                  document.getElementById("generativeUi")?.checked || false,
               }),
             });
             if (!response.ok) throw new Error(await response.text());
@@ -3900,6 +3941,7 @@ Examples:
             dark_mode: document.getElementById("darkMode").checked,
             web_search_enabled:
               document.getElementById("webSearchEnabled").checked,
+            generative_ui: document.getElementById("generativeUi").checked,
             max_messages_per_conversation:
               parseInt(document.getElementById("maxMessages").value, 10) || 0,
           };
@@ -4069,6 +4111,7 @@ Examples:
           document.getElementById("darkMode").checked = !!config.dark_mode;
           document.getElementById("webSearchEnabled").checked =
             !!config.web_search_enabled;
+          document.getElementById("generativeUi").checked = !!config.generative_ui;
           document.getElementById("maxMessages").value =
             config.max_messages_per_conversation || 0;
           document.getElementById("maxTokens").value =

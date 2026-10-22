@@ -1,0 +1,7 @@
+.git
+.env
+.env.*
+__pycache__/
+*.db
+ui/node_modules/
+ui/out/
