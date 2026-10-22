@@ -1968,6 +1968,15 @@
           <textarea id="leadConsentText" rows="3" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;"></textarea>
         </div>
         <div class="control-group">
+          <label for="dataRetentionDays">🗓️ Cancella automaticamente contatti e consensi dopo (giorni)</label>
+          <input type="number" id="dataRetentionDays" min="7" max="730" value="90" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; font-family: inherit;" />
+          <p style="font-size: 0.78em; margin-top: 4px; color: #404040">
+            90 giorni = 3 mesi. Clippy elimina da solo i contatti ricevuti e il registro dei
+            consensi più vecchi di così. Le email già arrivate nella casella del cliente non
+            vengono toccate. Indica la stessa durata nell'informativa.
+          </p>
+        </div>
+        <div class="control-group">
           <div style="display: flex; gap: 8px; flex-wrap: wrap">
             <button class="btn-secondary" type="button" onclick="sendTestLead()">📨 Invia email di prova</button>
             <button class="btn-secondary" type="button" onclick="openLeads()">📋 Contatti ricevuti</button>
@@ -3973,6 +3982,7 @@ Examples:
         list.innerHTML = currentLeads
           .map((l) => {
             const when = l.created_at ? new Date(l.created_at).toLocaleString("it-IT") : "";
+            const expires = l.expires_at ? new Date(l.expires_at).toLocaleDateString("it-IT") : "";
             const failed = l.delivery_status !== "sent";
             return `<div style="border: 1px solid #c0c0c0; background: #fff; padding: 8px 10px; font-size: 0.85em; line-height: 1.45">
               <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap">
@@ -3986,6 +3996,7 @@ Examples:
                 <span title="${escapeHtml(l.delivery_error || "")}">${status[l.delivery_status] || escapeHtml(l.delivery_status)}</span>
                 ${failed ? `<button class="btn-secondary" type="button" onclick="resendLead(${l.id})">↻ Reinvia</button>` : ""}
                 <button class="btn-secondary" type="button" onclick="deleteLead(${l.id})">🗑️ Elimina</button>
+                ${expires ? `<span style="color: #606060">· cancellazione automatica il ${escapeHtml(expires)}</span>` : ""}
               </div>
             </div>`;
           })
@@ -4303,6 +4314,8 @@ Examples:
             privacy_button_label: document.getElementById("privacyButtonLabel").value.trim() || null,
             lead_emails: document.getElementById("leadEmails").value.trim() || null,
             lead_consent_text: document.getElementById("leadConsentText").value.trim() || null,
+            data_retention_days:
+              parseInt(document.getElementById("dataRetentionDays").value, 10) || 90,
             max_messages_per_conversation:
               parseInt(document.getElementById("maxMessages").value, 10) || 0,
           };
@@ -4479,6 +4492,7 @@ Examples:
           document.getElementById("privacyButtonLabel").value = config.privacy_button_label || "";
           document.getElementById("leadEmails").value = config.lead_emails || "";
           document.getElementById("leadConsentText").value = config.lead_consent_text || "";
+          document.getElementById("dataRetentionDays").value = config.data_retention_days || 90;
           previewConsentAccepted = false;
           previewConsentId = null;
           document.getElementById("maxMessages").value =

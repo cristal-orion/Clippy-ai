@@ -36,7 +36,7 @@ from auth import (
 from openui import OPENUI_PROMPT, generative_ui_on, leads_on, openui_prompt
 from leads import (
     router as leads_router, consent_valid, delete_bot_data, get_client_ip,
-    widget_leads, widget_privacy,
+    start_retention_sweeps, widget_leads, widget_privacy,
 )
 
 # Encryption key (in production, load from environment)
@@ -60,6 +60,7 @@ async def startup_event():
     print("=" * 80)
     init_db()
     print("✅ Database initialized!")
+    start_retention_sweeps()
     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'not set')}")
     print(f"🔐 JWT Secret: {'SET' if os.getenv('JWT_SECRET_KEY') else 'NOT SET - AUTHENTICATION WILL FAIL!'}")
     print(f"🔑 Encryption Key: {'SET' if os.getenv('ENCRYPTION_KEY') else 'NOT SET'}")
@@ -502,6 +503,7 @@ async def create_config(
         privacy_button_label=config_data.privacy_button_label,
         lead_emails=config_data.lead_emails,
         lead_consent_text=config_data.lead_consent_text,
+        data_retention_days=config_data.data_retention_days,
         allowed_domains=allowed_domains_json,
         user_id=current_user.id
     )

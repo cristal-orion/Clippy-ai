@@ -66,6 +66,7 @@ def ensure_columns():
         "privacy_button_label": "VARCHAR(80)",
         "lead_emails": "TEXT",
         "lead_consent_text": "TEXT",
+        "data_retention_days": "INTEGER DEFAULT 90",
     }
     with engine.begin() as conn:
         for col, ddl in additions.items():

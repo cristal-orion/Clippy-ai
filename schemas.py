@@ -101,6 +101,7 @@ class ClippyConfigBase(BaseModel):
     privacy_button_label: Optional[str] = Field(default=None, max_length=80)
     lead_emails: Optional[str] = None
     lead_consent_text: Optional[str] = Field(default=None, max_length=1000)
+    data_retention_days: Optional[int] = Field(default=90, ge=7, le=730)
 
     _lead_emails = validator("lead_emails", allow_reuse=True)(normalise_lead_emails)
     _policy_url = validator("privacy_policy_url", allow_reuse=True)(normalise_http_url)
@@ -135,6 +136,7 @@ class ClippyConfigUpdate(BaseModel):
     privacy_button_label: Optional[str] = Field(None, max_length=80)
     lead_emails: Optional[str] = None
     lead_consent_text: Optional[str] = Field(None, max_length=1000)
+    data_retention_days: Optional[int] = Field(None, ge=7, le=730)
 
     _lead_emails = validator("lead_emails", allow_reuse=True)(normalise_lead_emails)
     _policy_url = validator("privacy_policy_url", allow_reuse=True)(normalise_http_url)
@@ -166,6 +168,7 @@ class ClippyConfigResponse(BaseModel):
     privacy_button_label: Optional[str]
     lead_emails: Optional[str]
     lead_consent_text: Optional[str]
+    data_retention_days: Optional[int]
     usage_count: int
     created_at: datetime
     updated_at: Optional[datetime]

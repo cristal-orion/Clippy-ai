@@ -11,6 +11,7 @@ Privacy notice and leads for Clippy bots.
   of form-relay site allowed to choose recipients per request.
 """
 
+import asyncio
 import hashlib
 import ipaddress
 import json
@@ -18,7 +19,7 @@ import os
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
 
@@ -28,7 +29,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import get_current_active_user
-from database import get_db
+from database import SessionLocal, get_db
 from models import ClippyConfig, ConsentEvent, Lead, User
 from openui import leads_on
 from schemas import _EMAIL_RE, normalise_lead_emails
@@ -52,6 +53,11 @@ DEFAULT_LEAD_CONSENT = (
     "Acconsento al trattamento dei miei dati e del riepilogo di questa conversazione "
     "per essere ricontattato, come descritto nell'informativa privacy."
 )
+
+# Leads and consent records are deleted automatically after each bot's
+# retention period (data_retention_days); the sweep runs every 6 hours.
+DEFAULT_RETENTION_DAYS = 90
+RETENTION_SWEEP_SECONDS = int(os.getenv("RETENTION_SWEEP_SECONDS", "21600"))
 
 LEAD_LABELS = {
     "nome": "Nome e cognome",
@@ -411,10 +417,12 @@ def _owned_lead(db: Session, lead_id: int, user: User) -> Lead:
     return lead
 
 
-def _lead_out(lead: Lead) -> dict:
+def _lead_out(lead: Lead, retention_days: Optional[int] = None) -> dict:
+    expires = lead.created_at + timedelta(days=retention_days) if lead.created_at and retention_days else None
     return {
         "id": lead.id,
         "created_at": lead.created_at.isoformat() if lead.created_at else None,
+        "expires_at": expires.isoformat() if expires else None,
         "name": lead.name, "email": lead.email, "phone": lead.phone, "company": lead.company,
         "note": lead.note, "conversation": lead.conversation, "page_url": lead.page_url,
         "consent_text": lead.consent_text,
@@ -426,7 +434,8 @@ def _lead_out(lead: Lead) -> dict:
 async def list_leads(config_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     config = _owned_config(db, config_id, current_user)
     leads = db.query(Lead).filter(Lead.config_id == config.id).order_by(Lead.id.desc()).limit(500).all()
-    return {"leads": [_lead_out(lead) for lead in leads]}
+    days = config.data_retention_days or DEFAULT_RETENTION_DAYS
+    return {"leads": [_lead_out(lead, days) for lead in leads], "retention_days": days}
 
 
 @router.delete("/api/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -449,10 +458,56 @@ async def resend_lead(lead_id: int, current_user: User = Depends(get_current_act
     if delivery == "sent":
         lead.delivered_at = datetime.now(timezone.utc)
     db.commit()
-    return _lead_out(lead)
+    return _lead_out(lead, config.data_retention_days or DEFAULT_RETENTION_DAYS)
 
 
 def delete_bot_data(db: Session, config: ClippyConfig) -> None:
     """Leads and consent records go with the bot that collected them."""
     db.query(Lead).filter(Lead.config_id == config.id).delete()
     db.query(ConsentEvent).filter(ConsentEvent.config_id == config.id).delete()
+
+
+# ============ Automatic deletion (retention) ============
+
+def purge_expired(db: Session, now: Optional[datetime] = None) -> dict:
+    """Delete leads and consent records older than each bot's retention period."""
+    now = now or datetime.now(timezone.utc)
+    removed = {"leads": 0, "consents": 0}
+    for config in db.query(ClippyConfig).all():
+        days = config.data_retention_days or DEFAULT_RETENTION_DAYS
+        cutoff = (now - timedelta(days=days)).replace(tzinfo=None)  # stored as naive UTC
+        removed["leads"] += (
+            db.query(Lead).filter(Lead.config_id == config.id, Lead.created_at < cutoff)
+            .delete(synchronize_session=False)
+        )
+        removed["consents"] += (
+            db.query(ConsentEvent).filter(ConsentEvent.config_id == config.id, ConsentEvent.created_at < cutoff)
+            .delete(synchronize_session=False)
+        )
+    db.commit()
+    return removed
+
+
+async def _retention_loop():
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                removed = purge_expired(db)
+            finally:
+                db.close()
+            if removed["leads"] or removed["consents"]:
+                print(f"🗑️ Retention: deleted {removed['leads']} lead(s) and {removed['consents']} consent record(s)")
+        except Exception as e:  # a failed sweep must not stop the next ones
+            print(f"⚠️ Retention sweep failed: {e}")
+        await asyncio.sleep(RETENTION_SWEEP_SECONDS)
+
+
+_sweeper = None
+
+
+def start_retention_sweeps() -> None:
+    """Run the deletion sweep now and every RETENTION_SWEEP_SECONDS (from the app's startup)."""
+    global _sweeper
+    if _sweeper is None or _sweeper.done():
+        _sweeper = asyncio.get_running_loop().create_task(_retention_loop())

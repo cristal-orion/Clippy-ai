@@ -70,31 +70,42 @@ leads.httpx.AsyncClient = FakeAsyncClient
 main.complete_with_continuation = fake_completion
 
 
-class PrivacyAndLeads(unittest.TestCase):
+class _Ctx:
+    """Client, users and the main test bot, shared by every test class."""
+
+
+ctx = _Ctx()
+
+
+def register(email, username):
+    res = ctx.client.post("/api/auth/register", json={"email": email, "username": username, "password": "password123"})
+    assert res.status_code == 201, res.text
+    return res.json()["access_token"]
+
+
+def setUpModule():
+    ctx.client = TestClient(main.app)
+    ctx.client.__enter__()  # runs the startup hook: creates the tables
+    ctx.token = register("owner@example.com", "owner")
+    ctx.other = register("other@example.com", "other")
+    res = ctx.client.post("/api/configs", headers={"Authorization": f"Bearer {ctx.token}"}, json={
+        "name": "Icura Bot", "provider": "gemini", "model": "gemini-x", "api_key": "k",
+        "system_prompt": "Istruzioni riservate", "ui_mode": "modern", "generative_ui": True,
+        "privacy_enabled": True, "privacy_policy_url": "https://cliente.example/privacy",
+        "lead_emails": "commerciale@cliente.example; titolare@cliente.example",
+    })
+    assert res.status_code == 201, res.text
+    ctx.config_id = res.json()["config_id"]
+
+
+def tearDownModule():
+    ctx.client.__exit__(None, None, None)
+
+
+class ApiTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = TestClient(main.app)
-        cls.client.__enter__()  # runs the startup hook: creates the tables
-        cls.token = cls.register("owner@example.com", "owner")
-        cls.other = cls.register("other@example.com", "other")
-        res = cls.client.post("/api/configs", headers=cls.auth(cls.token), json={
-            "name": "Icura Bot", "provider": "gemini", "model": "gemini-x", "api_key": "k",
-            "system_prompt": "Istruzioni riservate", "ui_mode": "modern", "generative_ui": True,
-            "privacy_enabled": True, "privacy_policy_url": "https://cliente.example/privacy",
-            "lead_emails": "commerciale@cliente.example; titolare@cliente.example",
-        })
-        assert res.status_code == 201, res.text
-        cls.config_id = res.json()["config_id"]
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.client.__exit__(None, None, None)
-
-    @classmethod
-    def register(cls, email, username):
-        res = cls.client.post("/api/auth/register", json={"email": email, "username": username, "password": "password123"})
-        assert res.status_code == 201, res.text
-        return res.json()["access_token"]
+        cls.client, cls.token, cls.other, cls.config_id = ctx.client, ctx.token, ctx.other, ctx.config_id
 
     @staticmethod
     def auth(token):
@@ -106,6 +117,8 @@ class PrivacyAndLeads(unittest.TestCase):
         relay_status["code"] = 200
         leads._limits.hits.clear()
 
+
+class PrivacyAndLeads(ApiTest):
     def consent(self):
         res = self.client.post("/api/widget/consent", json={"config_id": self.config_id, "page": "https://cliente.example/"})
         self.assertEqual(res.status_code, 200, res.text)
@@ -273,6 +286,92 @@ class PrivacyAndLeads(unittest.TestCase):
             self.assertEqual(db.query(Lead).filter(Lead.email == "a@b.example").count(), 0)
         finally:
             db.close()
+
+
+class Retention(ApiTest):
+    """Leads and consent records are deleted after each bot's retention period."""
+
+    def make_bot(self, **extra):
+        res = self.client.post("/api/configs", headers=self.auth(self.token), json={
+            "name": "Ritenzione", "provider": "gemini", "model": "m", "api_key": "k", "ui_mode": "modern",
+            "generative_ui": True, "privacy_enabled": True, "lead_emails": "a@b.example", **extra,
+        })
+        self.assertEqual(res.status_code, 201, res.text)
+        return res.json()
+
+    def age(self, model, config_pk, days):
+        from datetime import datetime, timedelta
+        from database import SessionLocal
+        db = SessionLocal()
+        try:
+            for row in db.query(model).filter(model.config_id == config_pk).all():
+                row.created_at = datetime.utcnow() - timedelta(days=days)
+            db.commit()
+        finally:
+            db.close()
+
+    def collect(self, config_id):
+        consent = self.client.post("/api/widget/consent", json={"config_id": config_id}).json()["consent_id"]
+        res = self.client.post("/api/widget/lead", json={"config_id": config_id, "consent_id": consent,
+                                                         "fields": {"nome": "A B", "email": "a@b.example", "consenso": True}})
+        self.assertEqual(res.status_code, 200, res.text)
+
+    def counts(self, config_pk):
+        from database import SessionLocal
+        from models import ConsentEvent, Lead
+        db = SessionLocal()
+        try:
+            return (db.query(Lead).filter(Lead.config_id == config_pk).count(),
+                    db.query(ConsentEvent).filter(ConsentEvent.config_id == config_pk).count())
+        finally:
+            db.close()
+
+    def purge(self):
+        from database import SessionLocal
+        db = SessionLocal()
+        try:
+            return leads.purge_expired(db)
+        finally:
+            db.close()
+
+    def test_default_is_90_days(self):
+        self.assertEqual(self.make_bot()["data_retention_days"], 90)
+
+    def test_expired_data_is_deleted_and_recent_data_kept(self):
+        from models import ConsentEvent, Lead
+        bot = self.make_bot()
+        self.collect(bot["config_id"])
+        self.age(Lead, bot["id"], 89)
+        self.age(ConsentEvent, bot["id"], 89)
+        self.purge()
+        self.assertEqual(self.counts(bot["id"]), (1, 1), "89 days: still within 3 months")
+        self.age(Lead, bot["id"], 91)
+        self.age(ConsentEvent, bot["id"], 91)
+        self.purge()
+        self.assertEqual(self.counts(bot["id"]), (0, 0), "91 days: deleted")
+
+    def test_each_bot_keeps_its_own_period(self):
+        from models import Lead
+        short = self.make_bot(data_retention_days=7)
+        long = self.make_bot(data_retention_days=365)
+        for bot in (short, long):
+            self.collect(bot["config_id"])
+            self.age(Lead, bot["id"], 30)
+        self.purge()
+        self.assertEqual(self.counts(short["id"])[0], 0)
+        self.assertEqual(self.counts(long["id"])[0], 1)
+
+    def test_lead_list_shows_the_deletion_date(self):
+        bot = self.make_bot(data_retention_days=30)
+        self.collect(bot["config_id"])
+        data = self.client.get(f"/api/configs/{bot['config_id']}/leads", headers=self.auth(self.token)).json()
+        self.assertEqual(data["retention_days"], 30)
+        self.assertTrue(data["leads"][0]["expires_at"])
+
+    def test_retention_out_of_range_is_rejected(self):
+        for days in (0, 3, 1000):
+            res = self.client.put(f"/api/configs/{self.config_id}", headers=self.auth(self.token), json={"data_retention_days": days})
+            self.assertEqual(res.status_code, 422, days)
 
 
 class ClientIp(unittest.TestCase):

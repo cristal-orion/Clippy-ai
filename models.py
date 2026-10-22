@@ -63,6 +63,7 @@ class ClippyConfig(Base):
     privacy_button_label = Column(String(80), nullable=True)
     lead_emails = Column(Text, nullable=True)  # comma-separated, up to 3
     lead_consent_text = Column(Text, nullable=True)
+    data_retention_days = Column(Integer, default=90)  # leads and consent records are deleted after this
 
     # Security
     allowed_domains = Column(Text, nullable=True)  # JSON array of allowed domains
